@@ -14,10 +14,10 @@ dependencies:
 
   # Data science
   - ipython
-  - ipykernel
+  # - ipykernel
   - numpy
   - rasterio
-  - seaborn
+  # - seaborn
   - scikit-image
 
   # Machine learning

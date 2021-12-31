@@ -7,7 +7,7 @@ def get_proportions(raster):
 
     Parameters
     ----------
-    raster : array
+    raster : np.array
         An array containing the rasterized labels.
 
     Returns

@@ -57,8 +57,6 @@ def generate_tile_paths(
     )
 
 
-
-
 # TODO: add random seed
 # TODO: add documentation
 def generate_patch_indexes(
@@ -69,7 +67,7 @@ def generate_patch_indexes(
     test_size=0.1,
     shuffle=True,
     verbose=True,
-) -> pd.DataFrame:
+):
     """Calculate and generate a set of indexes based on the tile 
     and patch sizes. 
     
@@ -109,9 +107,11 @@ def generate_patch_indexes(
         
     Returns
     -------
-    pd.DataFrame
-        A dataframe containing the patch metadata to be passed to the 
-        PatchFlowGenerator for it to work with the generated indexes.
+    tuple of dictionaries
+        Three dictionaries each of which contains the paired_paths, 
+        tile_shape, patche_shape and patch_indexes of a different 
+        subset, so that it can be easily passed to a different
+        instance of the PatchFlowGenerator using the ** operator.
     """
 
 
@@ -127,7 +127,7 @@ def generate_patch_indexes(
     test_length = int(len(patch_indexes) * test_size)
     validation_length = int(len(patch_indexes) * validation_size)
 
-    # Extract test and validation and leave the rest for training
+    # Extract test and validation indexes and leave the rest for training
     test_indexes = patch_indexes[0 : test_length]
     validation_indexes = patch_indexes[
         test_length : test_length + validation_length

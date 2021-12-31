@@ -1,5 +1,5 @@
 """Functions for plotting imagery and labels."""
-#%%
+
 from pathlib import Path
 
 import numpy as np
