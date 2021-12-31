@@ -1,0 +1,24 @@
+name: patchflow
+
+channels:
+  - conda-forge
+  
+dependencies:
+  
+  # Core
+  - python
+  - pip
+
+  # Code
+  - black
+
+  # Data science
+  - ipython
+  - ipykernel
+  - numpy
+  - rasterio
+  - seaborn
+  - scikit-image
+
+  # Machine learning
+  - tensorflow
