@@ -4,10 +4,9 @@ import os
 from pathlib import Path
 
 import pandas as pd
-import rasterio
 
 
-def generate_paired_paths(
+def generate_tile_paths(
     directory: str, imagery_folder_name="imagery", labels_folder_name="labels"
 ):
     """Retrieve imagery / labels paired data paths.
