@@ -30,24 +30,26 @@ def plot_imagery(
     ----------
 
     raster : array, str, Path
-        Image raster to plot. If string or pathlib.Path object, 
-        it will be interpreted as a path and open using rasterio.
+        Image raster to plot. If string or pathlib.Path object, it will 
+        be interpreted as a path and open using rasterio.
     window : rasterio.windows.Window
-        A rasterio window to plot only a subset of the raster. 
-        Ignored if the raster comes as array.
+        A rasterio window to plot only a subset of the raster. Ignored 
+        if the raster comes as array.
     bands : list, optional
         Define which bands will be displayed and in which order.
-        Positions in the list correspond to red, green and blue
+        Positions in the list correspond to red, green and blue 
         respectively. Default: `red: 1, green: 2, blue: 3`.
     normalize_bands : bool, optional
-        If true, min-max normalization is performed on each band
-        before plotting. False by default.
+        If true, min-max normalization is performed on each band before 
+        plotting. False by default.
     show_axis : bool, optional
-        If true, the axis of the image will be displayed. False by default.
+        If true, the axis of the image will be displayed. False by 
+        default.
     ax : matplotlib Axes, optional
         Axes to plot on, otherwise uses current axes.
     **kwargs : key, value pairings, optional
-        These will be passed to the matplotlib.pyplot.imshow function.
+        These will be passed to the matplotlib.pyplot.imshow
+        function.
         See full list at:
         https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.imshow.html
 
@@ -105,29 +107,33 @@ def plot_labels(
 
     labels : array, str, Path
         Categorical raster to plot. If string or pathlib.Path object, 
-        it will be interpreted as a path and open using rasterio. If array, 
-        it is expected to have two dimensions.
+        it will be interpreted as a path and open using rasterio. If 
+        array, it is expected to have two dimensions.
     window : rasterio.windows.Window, optional
-        A rasterio window to plot only a subset of the raster. 
-        Ignored if the raster comes as array.
+        A rasterio window to plot only a subset of the raster. Ignored 
+        if the raster comes as array.
     ignore : list of int, optional
         List of values that will not be displayed. Label 0 by default.
     cmap : str, cmap, optional
-        cmap name or object used to display the labels. `Set1` by defualt.
+        cmap name or object used to display the labels. `Set1` by 
+        defualt.
     alpha : float, optional
-        Real number between 0 and 1 to control the transparency of
-        the displayed labels. By default, 0.7.
+        Real number between 0 and 1 to control the transparency of the 
+        displayed labels. By default, 0.7.
     legend : bool, optional
-        If true, a legend showing the color of each label will be displayed.
+        If true, a legend showing the color of each label will be 
+        displayed.
     legend_names : list of str, optional
-        List of names of the labels to be displayed in the legend.
-        If not provided, the label values will be displayed instead.
+        List of names of the labels to be displayed in the legend. If 
+        not provided, the label values will be displayed instead.
     show_axis : bool, optional
-        If true, the axis of the image will be displayed. False by default.
+        If true, the axis of the image will be displayed. False by 
+        default.
     ax : matplotlib Axes, optional
         Axes to plot on, otherwise uses current axes.
     **kwargs : key, value pairings, optional
-        These will be passed to the matplotlib.pyplot.imshow function.
+        These will be passed to the matplotlib.pyplot.imshow
+        function.
         See full list at:
         https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.imshow.html
 
