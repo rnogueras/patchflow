@@ -14,7 +14,6 @@ from stats import get_proportions
 from plot import plot_imagery, plot_labels
 
 
-# TODO: Add random seed
 # TODO: Add documentation
 # TODO: Add filler value atribute and use it for plots
 # TODO: Add infinite iterator method (in keras.utils.Sequence)
@@ -26,7 +25,7 @@ class PatchFlow(keras.utils.Sequence):
         paired_paths,
         tile_shape,
         patch_shape,
-        patch_indexes=None,
+        patch_ids=None,
         batch_size=32,
         bands=[1, 2, 3],
         output_shape=None,
@@ -35,36 +34,51 @@ class PatchFlow(keras.utils.Sequence):
         random_seed=None,
     ):
         """Initialize data generator."""
+
+        # Paths
         self.paired_paths = paired_paths
-        self.patch_indexes = patch_indexes
+
+        # Patch location
         self.patch_shape = np.array(patch_shape)
         self.tile_shape = np.array(tile_shape)
         self.grid_shape = self.tile_shape // self.patch_shape
         self.grid_size = np.prod(self.grid_shape)
+        self.patch_ids = self.init_patch_ids(patch_ids)
+
+        # Process config
         self.batch_size = batch_size
         self.bands = bands
         self.output_shape = output_shape
-        self.rescaling_factor = rescaling_factor
-        self.shuffle = shuffle
-        if random_seed is not None:
-            self.rng = np.random.default_rng(random_seed)
-        self.iterator = 0
-        if self.patch_indexes is None:
-            self.patch_indexes = np.arange(
-                len(self.paired_paths) * self.grid_size
-            )
-            print(
-                f"{len(self.patch_indexes)} patches have been set up"
-                " in this generator."
-            )
         if self.output_shape is None:
-            self.output_shape = patch_shape
+            self.output_shape = self.patch_shape
+        self.rescaling_factor = rescaling_factor
+
+        # Iteration
+        self.iterator = 0
+        self.shuffle = shuffle
+        self.rng = self.init_rng(random_seed)
         if self.shuffle:
             self.shuffle_generator()
 
+    def init_patch_ids(self, patch_ids):
+        """Initialize patch ids."""
+        if patch_ids is None:
+            patch_ids = np.arange(len(self.paired_paths) * self.grid_size)
+            print(
+                f"{len(patch_ids)} patches have been set up in this generator."
+            )
+
+        return patch_ids
+
+    def init_rng(self, random_seed):
+        """Initialize random number generator."""
+        if random_seed is None:
+            return None
+        return np.random.default_rng(random_seed)
+
     def __len__(self):
         """Return number of batches per epoch."""
-        return math.ceil(len(self.patch_indexes) / self.batch_size)
+        return math.ceil(len(self.patch_ids) / self.batch_size)
 
     def __iter__(self):
         """Make the generator iterable."""
@@ -83,7 +97,7 @@ class PatchFlow(keras.utils.Sequence):
         if index >= len(self):
             raise IndexError("Batch index out of range.")
 
-        self.current_batch = self.patch_indexes[
+        self.current_batch = self.patch_ids[
             index * self.batch_size : (index + 1) * self.batch_size
         ]
 
@@ -94,20 +108,20 @@ class PatchFlow(keras.utils.Sequence):
         self.iterator = 0
 
     def shuffle_generator(self):
-        """Shuffle generator indexes."""
+        """Shuffle patch ids."""
         if self.rng is not None:
-            self.rng.shuffle(self.patch_indexes)
+            self.rng.shuffle(self.patch_ids)
             return
 
-        np.random.shuffle(self.patch_indexes)
+        np.random.shuffle(self.patch_ids)
 
     def unshuffle_generator(self):
-        """Unshuffle generator indexes."""
-        np.ndarray.sort(self.patch_indexes)
+        """Unshuffle generator patch ids."""
+        np.ndarray.sort(self.patch_ids)
 
     def on_epoch_end(self):
-        """Update indexes after each epoch."""
-        self.patch_indexes = np.arange(len(self.patch_indexes))
+        """Update generator after each epoch."""
+        self.patch_ids = np.arange(len(self.patch_ids))
         if self.shuffle:
             self.shuffle_generator()
 
@@ -121,9 +135,7 @@ class PatchFlow(keras.utils.Sequence):
 
         for index in range(number_of_batches):
 
-            batch_patch_ids = np.random.choice(
-                self.patch_indexes, self.batch_size
-            )
+            batch_patch_ids = np.random.choice(self.patch_ids, self.batch_size)
             batch = self.load_batch(batch_patch_ids, return_X=False)
 
             for label_array in batch:
@@ -275,15 +287,22 @@ class PatchFlow(keras.utils.Sequence):
         }
 
     def plot_tile_grid(
-        self, tile_id, show_labels=False, id_color="white", grid_color="white"
+        self,
+        tile_id,
+        show_labels=False,
+        patch_id_color="white",
+        patch_id_size="x-large",
+        grid_color="white",
+        linewidth=3,
+        figsize=(10, 10),
     ):
         """Plot tile and its grid of patches."""
-        sorted_patch_ids = np.arange(len(self.patch_indexes))
+        sorted_patch_ids = np.arange(len(self.patch_ids))
         tile_patch_ids = sorted_patch_ids[
             tile_id * self.grid_size : (tile_id + 1) * self.grid_size
         ]
 
-        fig, ax = plt.subplots(figsize=(10, 10))
+        fig, ax = plt.subplots(figsize=figsize)
         # Remove whitespace around the image
         fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
 
@@ -299,7 +318,7 @@ class PatchFlow(keras.utils.Sequence):
             axis="both",
             linestyle="-",
             color=grid_color,
-            linewidth=3,
+            linewidth=linewidth,
         )
 
         # Plot imagery and labels
@@ -318,8 +337,8 @@ class PatchFlow(keras.utils.Sequence):
                     x_coord,
                     y_coord,
                     f"{tile_patch_ids[patch_position]}",
-                    color=id_color,
+                    color=patch_id_color,
+                    size=patch_id_size,
                     ha="center",
                     va="center",
-                    size="x-large",
                 )
