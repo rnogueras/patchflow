@@ -1,15 +1,13 @@
 """Functions for plotting imagery and labels."""
-#%%
+
 from pathlib import Path
+import warnings
 
 import numpy as np
 import matplotlib
 from matplotlib import pyplot as plt
-
 import rasterio
 import rasterio.plot
-
-import warnings
 
 warnings.filterwarnings("ignore")
 
@@ -68,14 +66,12 @@ def plot_imagery(
         show = True
         ax = plt.gca()
 
-    rasterio.plot.show(raster, ax=ax, **kwargs)
-    
-    if normalize_bands:
-        for index, band in enumerate(raster):
-            raster[index] = rasterio.plot.adjust_band(band)
-            
     if raster_shape:
         raster = rasterio.plot.reshape_as_image(raster)
+
+    if normalize_bands:
+        for index, band in enumerate(raster):
+            raster[:, :, index] = rasterio.plot.adjust_band(band)
         
     ax.imshow(raster, **kwargs)
 
@@ -116,7 +112,7 @@ def plot_labels(
         List of values that will not be displayed. Label 0 by default.
     cmap : str, cmap, optional
         cmap name or object used to display the labels. `Set1` by 
-        defualt.
+        default.
     alpha : float, optional
         Real number between 0 and 1 to control the transparency of the 
         displayed labels. By default, 0.7.
