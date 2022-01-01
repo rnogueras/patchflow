@@ -35,27 +35,24 @@ class PatchFlowGenerator(keras.utils.Sequence):
         self.patch_indexes = patch_indexes
         self.patch_shape = np.array(patch_shape)
         self.tile_shape = np.array(tile_shape)
-        self.tile_shape_in_patches = self.tile_shape // self.patch_shape
-        self.tile_size_in_patches = np.prod(self.tile_shape_in_patches)
+        self.grid_shape = self.tile_shape // self.patch_shape
+        self.grid_size = np.prod(self.grid_shape)
         self.batch_size = batch_size
         self.bands = bands
         self.output_shape = output_shape
         self.rescaling_factor = rescaling_factor
         self.shuffle = shuffle
         self.iterator = 0
-
         if self.patch_indexes is None:
             self.patch_indexes = np.arange(
-                len(self.paired_paths) * self.tile_size_in_patches
+                len(self.paired_paths) * self.grid_size
             )
             print(
                 f"{len(self.patch_indexes)} patches have been set up"
                 " in this generator."
             )
-
         if self.output_shape is None:
             self.output_shape = patch_shape
-
         if self.shuffle:
             self.shuffle_generator()
 
@@ -80,11 +77,11 @@ class PatchFlowGenerator(keras.utils.Sequence):
         if index >= len(self):
             raise IndexError("Batch index out of range.")
 
-        batch_patch_indexes = self.patch_indexes[
+        self.current_batch = self.patch_indexes[
             index * self.batch_size : (index + 1) * self.batch_size
         ]
 
-        return self._generate_batch(batch_patch_indexes)
+        return self.load_batch()
 
     def reset_generator(self):
         """Reset generator iterator."""
@@ -104,7 +101,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
         if self.shuffle:
             self.shuffle_generator()
 
-    # TODO: Add more statistics. 
+    # TODO: Add more statistics.
     # E.g.: min and max number of object pixels per class, mean, deviation...
     def estimate_proportions(self, number_of_batches=10, number_of_classes=2):
         """Estimate class proportions from a random sample of batches."""
@@ -114,10 +111,10 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
         for index in range(number_of_batches):
 
-            batch_patch_indexes = np.random.choice(
+            batch_patch_ids = np.random.choice(
                 self.patch_indexes, self.batch_size
             )
-            batch = self._generate_batch(batch_patch_indexes, return_X=False)
+            batch = self.load_batch(batch_patch_ids, return_X=False)
 
             for label_array in batch:
                 array_class_proportions = get_proportions(label_array)
@@ -141,80 +138,67 @@ class PatchFlowGenerator(keras.utils.Sequence):
         """Plot imagery and labels of a set of patches from the next batch."""
 
         X_batch, Y_batch = next(self)
-        
+
+        # Plot
         plt.figure(figsize=figure_size)
         for index in range(grid_height * grid_width):
             ax = plt.subplot(grid_height, grid_width, index + 1)
             plot_imagery(X_batch[index], raster_shape=False, ax=ax)
             plot_labels(Y_batch[index], legend=False, ax=ax)
-            
+
         plt.show()
-    
+
     # TODO: This function
     def plot_tile(self):
         """Plot tile and its grid of patches."""
         pass
 
-    def _generate_batch(
-        self, batch_patch_indexes, return_X=True):
-        """Load and process a batch of patches."""
+    def load_batch(self, return_X=True):
+        """Load and preprocess a batch of patches."""
 
-        # TODO: The 0 class corresponds to the `everything-else` 
-        # class. This is because we initialize Y as an array of 
-        # zeros, so this is going to be the label over the empty 
-        # areas. An argument specifying the filler class could 
-        # be added, the Y array should initialize with that number. 
-        
+        # TODO: The 0 class corresponds to the `everything-else`
+        # class. This is because we initialize Y as an array of
+        # zeros, so this is going to be the label over the empty
+        # areas. An argument specifying the filler class could
+        # be added, the Y array should initialize with that number.
+
         # Initialize output arrays
         Y = np.empty((self.batch_size, *self.output_shape, 1), dtype=np.uint8)
         if return_X:
             X = np.empty((self.batch_size, *self.output_shape, len(self.bands)))
 
-        for index, patch_index in enumerate(batch_patch_indexes):
+        for index, patch_id in enumerate(self.current_batch):
 
-            # Locate patch in the dataset
-            tile_index = patch_index // self.tile_size_in_patches
-            column_index = patch_index % self.tile_shape_in_patches[0]
-            row_index = (
-                patch_index
-                // self.tile_shape_in_patches[0] # width
-                % self.tile_shape_in_patches[1] # height
-            )
+            patch_meta = self.get_patch_meta(patch_id)
 
-            # Get paired data paths
-            patch_paths = self.paired_paths.iloc[tile_index]
-
-            # Create window
             window = rasterio.windows.Window(
-                column_index * self.patch_shape[0], # width
-                row_index * self.patch_shape[1], # height
+                patch_meta["column"] * self.patch_shape[0],
+                patch_meta["row"] * self.patch_shape[1],
                 self.patch_shape[0],
                 self.patch_shape[1],
             )
             window_shape = (window.width, window.height)
 
-            # Load data
-            with rasterio.open(patch_paths["labels_path"]) as dataset:
+            with rasterio.open(patch_meta["labels_path"]) as dataset:
                 label_array = dataset.read([1], window=window)
+
             if return_X:
-                with rasterio.open(patch_paths["imagery_path"]) as dataset:
+                with rasterio.open(patch_meta["imagery_path"]) as dataset:
                     imagery_array = dataset.read(self.bands, window=window)
 
             # TODO: better padding
             # Handle incomplete tiles
             invalid_labels_shape = label_array.squeeze().shape != window_shape
-
             if invalid_labels_shape:
                 label_array = np.resize(
                     label_array, new_shape=(*window_shape, 1)
                 )
-
                 if return_X:
                     imagery_array = np.resize(
                         imagery_array,
                         new_shape=(*window_shape, len(self.bands)),
                     )
-            
+
             # Reshape data as image
             label_array = rasterio.plot.reshape_as_image(label_array)
             if return_X:
@@ -251,3 +235,47 @@ class PatchFlowGenerator(keras.utils.Sequence):
             return Y
 
         return X, Y
+
+    def get_patch_meta(self, patch_id):
+        """Locate patch in the dataset."""
+
+        tile_id = patch_id // self.grid_size
+        column_id = patch_id % self.grid_shape[0]
+        row_id = patch_id // self.grid_shape[0] % self.grid_shape[1]
+        paths = self.paired_paths.iloc[tile_id]
+
+        return {
+            "tile": tile_id,
+            "column": column_id,
+            "row": row_id,
+            "imagery_path": paths["imagery_path"],
+            "labels_path": paths["labels_path"],
+        }
+
+
+#%%
+from pathlib import Path
+from paths import generate_tile_paths
+
+data_directory = Path("/home/robert/robert/roofs_dataset/train")
+
+paired_paths = generate_tile_paths(
+    directory=data_directory,
+    imagery_folder_name="image",
+    labels_folder_name="label",
+)
+
+generator = PatchFlowGenerator(
+    paired_paths=paired_paths,
+    tile_shape=(10000, 10000),
+    patch_shape=(128, 128),
+)
+
+
+#%%
+
+
+generator.plot_batch()
+
+
+# %%
