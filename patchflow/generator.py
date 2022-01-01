@@ -1,5 +1,5 @@
 #%%
-"""PatchFlowGenerator class."""
+"""PatchFlow class."""
 
 import math
 
@@ -17,7 +17,8 @@ from plot import plot_imagery, plot_labels
 # TODO: Add random seed
 # TODO: Add documentation
 # TODO: Add filler value atribute and use it for plots
-class PatchFlowGenerator(keras.utils.Sequence):
+# TODO: Add infinite iterator method (in keras.utils.Sequence)
+class PatchFlow(keras.utils.Sequence):
     """Patch generator to feed Keras segmentation models."""
 
     def __init__(
@@ -171,11 +172,12 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
         for index, patch_id in enumerate(self.current_batch):
 
+            # Get patch meta
             patch_meta = self.get_patch_meta(patch_id)
 
+            # Load data
             with rasterio.open(patch_meta["labels_path"]) as dataset:
                 label_array = dataset.read([1], window=patch_meta["window"])
-
             if return_X:
                 with rasterio.open(patch_meta["imagery_path"]) as dataset:
                     imagery_array = dataset.read(
@@ -211,6 +213,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
                     imagery_array = imagery_array * self.rescaling_factor
 
             # Resize output
+            # TODO: add attribute to change the `mode` parameter
             if self.output_shape is not None:
                 if label_array.shape != self.output_shape:
 
@@ -243,7 +246,6 @@ class PatchFlowGenerator(keras.utils.Sequence):
         tile_id = patch_id // self.grid_size
         column_id = patch_id % self.grid_shape[0]
         row_id = patch_id // self.grid_shape[0] % self.grid_shape[1]
-        paths = self.paired_paths.iloc[tile_id]
 
         window = rasterio.windows.Window(
             column_id * self.patch_shape[0],
@@ -251,6 +253,8 @@ class PatchFlowGenerator(keras.utils.Sequence):
             self.patch_shape[0],
             self.patch_shape[1],
         )
+
+        paths = self.paired_paths.iloc[tile_id]
 
         return {
             "patch_id": patch_id,
