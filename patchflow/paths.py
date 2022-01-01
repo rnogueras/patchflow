@@ -15,7 +15,7 @@ def generate_tile_paths(
 
     Paired files are expected to be named the same in both
     directories. Only the file names found in both folders will
-    be returned. No order is preserved.
+    be returned.
 
     Parameters
     ----------
@@ -41,9 +41,12 @@ def generate_tile_paths(
     imagery_folder_path = directory / imagery_folder_name
     labels_folder_path = directory / labels_folder_name
 
-    valid_file_names = set(os.listdir(imagery_folder_path)) & set(
-        os.listdir(labels_folder_path)
+    valid_file_names = list(
+        set(os.listdir(imagery_folder_path))
+        & set(os.listdir(labels_folder_path))
     )
+
+    valid_file_names.sort()
 
     return pd.DataFrame(
         {

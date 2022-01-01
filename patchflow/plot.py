@@ -1,3 +1,4 @@
+#%%
 """Functions for plotting imagery and labels."""
 
 from pathlib import Path
@@ -102,7 +103,7 @@ def plot_labels(
     ----------
 
     labels : array, str, Path
-        Categorical raster to plot. If string or pathlib.Path object,
+        Categorical raster to plot. If string or pathlib. Path object,
         it will be interpreted as a path and open using rasterio. If
         array, it is expected to have two dimensions.
     window : rasterio.windows.Window, optional

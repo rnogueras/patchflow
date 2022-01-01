@@ -5,6 +5,7 @@ import math
 
 import numpy as np
 from matplotlib import pyplot as plt
+import matplotlib.ticker
 import rasterio
 import skimage.transform
 from tensorflow import keras
@@ -15,6 +16,7 @@ from plot import plot_imagery, plot_labels
 
 # TODO: Add random seed
 # TODO: Add documentation
+# TODO: Add filler value atribute and use it for plots
 class PatchFlowGenerator(keras.utils.Sequence):
     """Patch generator to feed Keras segmentation models."""
 
@@ -131,13 +133,17 @@ class PatchFlowGenerator(keras.utils.Sequence):
     # TODO: Add general legend for all the label colors in the plot grid
     def plot_batch(
         self,
+        batch_id=None,
         grid_width=5,
         grid_height=5,
         figure_size=(14, 14),
     ):
         """Plot imagery and labels of a set of patches from the next batch."""
 
-        X_batch, Y_batch = next(self)
+        if batch_id is not None:
+            X_batch, Y_batch = self[batch_id]
+        else:
+            X_batch, Y_batch = next(self)
 
         # Plot
         plt.figure(figsize=figure_size)
@@ -145,13 +151,9 @@ class PatchFlowGenerator(keras.utils.Sequence):
             ax = plt.subplot(grid_height, grid_width, index + 1)
             plot_imagery(X_batch[index], raster_shape=False, ax=ax)
             plot_labels(Y_batch[index], legend=False, ax=ax)
+            ax.set_title(self.current_batch[index])
 
         plt.show()
-
-    # TODO: This function
-    def plot_tile(self):
-        """Plot tile and its grid of patches."""
-        pass
 
     def load_batch(self, return_X=True):
         """Load and preprocess a batch of patches."""
@@ -171,32 +173,31 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
             patch_meta = self.get_patch_meta(patch_id)
 
-            window = rasterio.windows.Window(
-                patch_meta["column"] * self.patch_shape[0],
-                patch_meta["row"] * self.patch_shape[1],
-                self.patch_shape[0],
-                self.patch_shape[1],
-            )
-            window_shape = (window.width, window.height)
-
             with rasterio.open(patch_meta["labels_path"]) as dataset:
-                label_array = dataset.read([1], window=window)
+                label_array = dataset.read([1], window=patch_meta["window"])
 
             if return_X:
                 with rasterio.open(patch_meta["imagery_path"]) as dataset:
-                    imagery_array = dataset.read(self.bands, window=window)
+                    imagery_array = dataset.read(
+                        self.bands, window=patch_meta["window"]
+                    )
 
             # TODO: better padding
             # Handle incomplete tiles
-            invalid_labels_shape = label_array.squeeze().shape != window_shape
+            invalid_labels_shape = (
+                label_array.squeeze().shape != patch_meta["window_shape"]
+            )
             if invalid_labels_shape:
                 label_array = np.resize(
-                    label_array, new_shape=(*window_shape, 1)
+                    label_array, new_shape=(*patch_meta["window_shape"], 1)
                 )
                 if return_X:
                     imagery_array = np.resize(
                         imagery_array,
-                        new_shape=(*window_shape, len(self.bands)),
+                        new_shape=(
+                            *patch_meta["window_shape"],
+                            len(self.bands),
+                        ),
                     )
 
             # Reshape data as image
@@ -244,38 +245,70 @@ class PatchFlowGenerator(keras.utils.Sequence):
         row_id = patch_id // self.grid_shape[0] % self.grid_shape[1]
         paths = self.paired_paths.iloc[tile_id]
 
+        window = rasterio.windows.Window(
+            column_id * self.patch_shape[0],
+            row_id * self.patch_shape[1],
+            self.patch_shape[0],
+            self.patch_shape[1],
+        )
+
         return {
+            "patch_id": patch_id,
             "tile": tile_id,
             "column": column_id,
             "row": row_id,
+            "window": window,
+            "window_shape": (window.width, window.height),
             "imagery_path": paths["imagery_path"],
             "labels_path": paths["labels_path"],
         }
 
+    def plot_tile_grid(
+        self, tile_id, show_labels=False, id_color="white", grid_color="white"
+    ):
+        """Plot tile and its grid of patches."""
+        sorted_patch_ids = np.arange(len(self.patch_indexes))
+        tile_patch_ids = sorted_patch_ids[
+            tile_id * self.grid_size : (tile_id + 1) * self.grid_size
+        ]
 
-#%%
-from pathlib import Path
-from paths import generate_tile_paths
+        fig, ax = plt.subplots(figsize=(10, 10))
+        # Remove whitespace around the image
+        fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
 
-data_directory = Path("/home/robert/robert/roofs_dataset/train")
+        # Define grid
+        ax.xaxis.set_major_locator(
+            matplotlib.ticker.MultipleLocator(base=self.patch_shape[0])
+        )
+        ax.yaxis.set_major_locator(
+            matplotlib.ticker.MultipleLocator(base=self.patch_shape[1])
+        )
+        ax.grid(
+            which="major",
+            axis="both",
+            linestyle="-",
+            color=grid_color,
+            linewidth=3,
+        )
 
-paired_paths = generate_tile_paths(
-    directory=data_directory,
-    imagery_folder_name="image",
-    labels_folder_name="label",
-)
+        # Plot imagery and labels
+        paths = self.paired_paths.iloc[tile_id]
+        plot_imagery(paths["imagery_path"], ax=ax, show_axis=True)
+        if show_labels:
+            plot_labels(paths["labels_path"], ax=ax, show_axis=True)
 
-generator = PatchFlowGenerator(
-    paired_paths=paired_paths,
-    tile_shape=(10000, 10000),
-    patch_shape=(128, 128),
-)
-
-
-#%%
-
-
-generator.plot_batch()
-
-
-# %%
+        # Plot ids
+        for row in range(self.grid_shape[1]):
+            y_coord = row * self.patch_shape[1] + self.patch_shape[1] / 2
+            for column in range(self.grid_shape[0]):
+                x_coord = column * self.patch_shape[0] + self.patch_shape[0] / 2
+                patch_position = column + row * self.grid_shape[0]
+                ax.text(
+                    x_coord,
+                    y_coord,
+                    f"{tile_patch_ids[patch_position]}",
+                    color=id_color,
+                    ha="center",
+                    va="center",
+                    size="x-large",
+                )
