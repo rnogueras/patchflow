@@ -79,7 +79,7 @@ def generate_patch_indexes(
     criteria. This ensures that the patches in each set come from 
     any of the original tiles without the distribution of the tiles 
     skewing the result. In no case are the patches generated, only 
-    the indexes needed to calculate the windows are generated in this 
+    the indexes needed to calculate the windows are created in this 
     step, so both the amount of processing and the size of the output 
     are very light.
     

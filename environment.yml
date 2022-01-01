@@ -6,18 +6,15 @@ channels:
 dependencies:
   
   # Core
-  - python
+  - python=3.9
   - pip
 
   # Code
   - black
 
   # Data science
-  - ipython
-  # - ipykernel
-  - numpy
+  - ipykernel
   - rasterio
-  # - seaborn
   - scikit-image
 
   # Machine learning
