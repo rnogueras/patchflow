@@ -107,6 +107,8 @@ def generate_patch_ids(
     verbose : bool, optional
         Whether to print the size in patches of each subset. True
         by default.
+    random_seed : int
+        Random seed to shuffle the generated ids.
 
     Returns
     -------

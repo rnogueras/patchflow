@@ -10,6 +10,7 @@ from matplotlib import pyplot as plt
 import rasterio
 import rasterio.plot
 
+# TODO: Catch the warning isolatedly
 warnings.filterwarnings("ignore")
 
 

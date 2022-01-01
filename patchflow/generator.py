@@ -32,6 +32,7 @@ class PatchFlow(keras.utils.Sequence):
         output_shape=None,
         rescaling_factor=None,
         shuffle=True,
+        random_seed=None,
     ):
         """Initialize data generator."""
         self.paired_paths = paired_paths
@@ -45,6 +46,8 @@ class PatchFlow(keras.utils.Sequence):
         self.output_shape = output_shape
         self.rescaling_factor = rescaling_factor
         self.shuffle = shuffle
+        if random_seed is not None:
+            self.rng = np.random.default_rng(random_seed)
         self.iterator = 0
         if self.patch_indexes is None:
             self.patch_indexes = np.arange(
@@ -92,6 +95,10 @@ class PatchFlow(keras.utils.Sequence):
 
     def shuffle_generator(self):
         """Shuffle generator indexes."""
+        if self.rng is not None:
+            self.rng.shuffle(self.patch_indexes)
+            return
+
         np.random.shuffle(self.patch_indexes)
 
     def unshuffle_generator(self):
