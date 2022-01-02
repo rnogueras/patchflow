@@ -13,6 +13,8 @@ import rasterio.plot
 # TODO: Catch the warning isolatedly
 warnings.filterwarnings("ignore")
 
+# TODO: add describe image function
+
 
 def plot_imagery(
     raster,
@@ -60,8 +62,8 @@ def plot_imagery(
     """
 
     if isinstance(raster, (str, Path)):
-        with rasterio.open(raster) as dataset:
-            raster = dataset.read(bands, window=window)
+        with rasterio.open(raster) as src:
+            raster = src.read(bands, window=window)
 
     show = False
     if not ax:
@@ -71,6 +73,7 @@ def plot_imagery(
     if raster_shape:
         raster = rasterio.plot.reshape_as_image(raster)
 
+    # TODO: cannot use enumerate on an image shaped array!
     if normalize_bands:
         for index, band in enumerate(raster):
             raster[:, :, index] = rasterio.plot.adjust_band(band)
@@ -149,8 +152,10 @@ def plot_labels(
         kwargs["vmax"] = cmap.N
 
     if isinstance(labels, (str, Path)):
-        with rasterio.open(labels) as dataset:
-            labels = dataset.read(1, window=window)
+        with rasterio.open(labels) as src:
+            labels = src.read(1, window=window)
+
+    labels = labels.squeeze()
 
     if ignore is not None:
         labels = np.where(np.isin(labels, ignore), np.nan, labels)

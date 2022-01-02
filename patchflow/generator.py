@@ -1,4 +1,3 @@
-#%%
 """PatchFlow class."""
 
 import math
@@ -10,14 +9,12 @@ import rasterio
 import skimage.transform
 from tensorflow import keras
 
-from stats import get_proportions
+from raster import get_proportions, pad
 from plot import plot_imagery, plot_labels
 
 
 # TODO: Add documentation
-# TODO: Add filler value atribute and use it for plots
-# TODO: Add infinite iterator method (in keras.utils.Sequence)
-class PatchFlow(keras.utils.Sequence):
+class PatchFlowGenerator(keras.utils.Sequence):
     """Patch generator to feed Keras segmentation models."""
 
     def __init__(
@@ -28,30 +25,36 @@ class PatchFlow(keras.utils.Sequence):
         patch_ids=None,
         batch_size=32,
         bands=[1, 2, 3],
+        filler_label=0,
+        padding_method="symmetric",
         output_shape=None,
+        resizing_method="contstant",
         rescaling_factor=None,
         shuffle=True,
         random_seed=None,
     ):
-        """Initialize data generator."""
+        """Initialize instance."""
 
         # Paths
         self.paired_paths = paired_paths
 
         # Patch location
-        self.patch_shape = np.array(patch_shape)
-        self.tile_shape = np.array(tile_shape)
-        self.grid_shape = self.tile_shape // self.patch_shape
+        self.patch_shape = patch_shape
+        self.tile_shape = tile_shape
+        self.grid_shape = self.init_grid_shape()
         self.grid_size = np.prod(self.grid_shape)
         self.patch_ids = self.init_patch_ids(patch_ids)
 
         # Process config
         self.batch_size = batch_size
         self.bands = bands
+        self.rescaling_factor = rescaling_factor
+        self.filler_label = filler_label
+        self.padding_method = padding_method
         self.output_shape = output_shape
         if self.output_shape is None:
             self.output_shape = self.patch_shape
-        self.rescaling_factor = rescaling_factor
+        self.resizing_method = resizing_method
 
         # Iteration
         self.iterator = 0
@@ -67,9 +70,14 @@ class PatchFlow(keras.utils.Sequence):
             print(
                 f"{len(patch_ids)} patches have been set up in this generator."
             )
-
         return patch_ids
-
+    
+    # TODO: Add greedy mode
+    def init_grid_shape(self):
+        """Initialize grid shape."""
+        grid_shape = np.array(self.tile_shape) // np.array(self.patch_shape)
+        return grid_shape.tolist()
+        
     def init_rng(self, random_seed):
         """Initialize random number generator."""
         if random_seed is None:
@@ -77,11 +85,11 @@ class PatchFlow(keras.utils.Sequence):
         return np.random.default_rng(random_seed)
 
     def __len__(self):
-        """Return number of batches per epoch."""
+        """Return number of batches in the sequence."""
         return math.ceil(len(self.patch_ids) / self.batch_size)
 
     def __iter__(self):
-        """Make the generator iterable."""
+        """Create a generator that iterates over the Sequence."""
         for index in range(len(self)):
             yield self[index]
 
@@ -92,7 +100,7 @@ class PatchFlow(keras.utils.Sequence):
         return self[iterator]
 
     def __getitem__(self, index):
-        """Get batch of patches by indexing."""
+        """Get batch of patches by indexing the Sequence."""
 
         if index >= len(self):
             raise IndexError("Batch index out of range.")
@@ -112,7 +120,6 @@ class PatchFlow(keras.utils.Sequence):
         if self.rng is not None:
             self.rng.shuffle(self.patch_ids)
             return
-
         np.random.shuffle(self.patch_ids)
 
     def unshuffle_generator(self):
@@ -120,7 +127,7 @@ class PatchFlow(keras.utils.Sequence):
         np.ndarray.sort(self.patch_ids)
 
     def on_epoch_end(self):
-        """Update generator after each epoch."""
+        """Method called at the end of every epoch."""
         self.patch_ids = np.arange(len(self.patch_ids))
         if self.shuffle:
             self.shuffle_generator()
@@ -136,7 +143,7 @@ class PatchFlow(keras.utils.Sequence):
         for index in range(number_of_batches):
 
             batch_patch_ids = np.random.choice(self.patch_ids, self.batch_size)
-            batch = self.load_batch(batch_patch_ids, return_X=False)
+            batch = self.load_batch(batch_patch_ids, load_imagery=False)
 
             for label_array in batch:
                 array_class_proportions = get_proportions(label_array)
@@ -175,87 +182,81 @@ class PatchFlow(keras.utils.Sequence):
 
         plt.show()
 
-    def load_batch(self, return_X=True):
+    def load_batch(self):
         """Load and preprocess a batch of patches."""
 
-        # TODO: The 0 class corresponds to the `everything-else`
-        # class. This is because we initialize Y as an array of
-        # zeros, so this is going to be the label over the empty
-        # areas. An argument specifying the filler class could
-        # be added, the Y array should initialize with that number.
-
-        # Initialize output arrays
         Y = np.empty((self.batch_size, *self.output_shape, 1), dtype=np.uint8)
-        if return_X:
-            X = np.empty((self.batch_size, *self.output_shape, len(self.bands)))
+        X = np.empty((self.batch_size, *self.output_shape, len(self.bands)))
 
         for index, patch_id in enumerate(self.current_batch):
-
-            # Get patch meta
+            
             patch_meta = self.get_patch_meta(patch_id)
 
-            # Load data
-            with rasterio.open(patch_meta["labels_path"]) as dataset:
-                label_array = dataset.read([1], window=patch_meta["window"])
-            if return_X:
-                with rasterio.open(patch_meta["imagery_path"]) as dataset:
-                    imagery_array = dataset.read(
-                        self.bands, window=patch_meta["window"]
-                    )
-
-            # TODO: better padding
-            # Handle incomplete tiles
-            invalid_labels_shape = (
-                label_array.squeeze().shape != patch_meta["window_shape"]
-            )
-            if invalid_labels_shape:
-                label_array = np.resize(
-                    label_array, new_shape=(*patch_meta["window_shape"], 1)
+            with rasterio.open(patch_meta["labels_path"]) as src:
+                labels = src.read([1], window=patch_meta["window"])
+            with rasterio.open(patch_meta["imagery_path"]) as src:
+                imagery = src.read(
+                    self.bands, window=patch_meta["window"]
                 )
-                if return_X:
-                    imagery_array = np.resize(
-                        imagery_array,
-                        new_shape=(
-                            *patch_meta["window_shape"],
-                            len(self.bands),
-                        ),
+
+            labels_shape = labels.squeeze().shape
+            imagery_shape = imagery[0, :, :].shape
+            
+            if labels_shape == imagery_shape != self.patch_shape:
+                if labels_shape[0] and labels_shape[1]:
+                    labels = pad(
+                        raster=labels,
+                        out_shape=(*self.patch_shape,),
+                        method=self.padding_method,
+                    )
+                    imagery = pad(
+                        raster=imagery,
+                        out_shape=(*self.patch_shape,),
+                        method=self.padding_method,
+                    ) 
+                else:
+                    labels = np.full(
+                        shape=(1, *self.patch_shape),
+                        fill_value=self.filler_label,
+                        dtype=np.uint8,
+                    )
+                    imagery = np.zeros(
+                        shape=(len(self.bands), *self.patch_shape),
+                        dtype=np.uint8
                     )
 
-            # Reshape data as image
-            label_array = rasterio.plot.reshape_as_image(label_array)
-            if return_X:
-                imagery_array = rasterio.plot.reshape_as_image(imagery_array)
+            elif labels_shape != imagery_shape != self.patch_shape:
+                labels = np.full(
+                    shape=(1, *self.patch_shape),
+                    fill_value=self.filler_label,
+                    dtype=np.uint8,
+                )
+                imagery = np.zeros(
+                    shape=(len(self.bands), *self.patch_shape),
+                    dtype=np.uint8
+                )
+                
+            if self.rescaling_factor is not None:
+                imagery = imagery * self.rescaling_factor
 
-            # Rescale values
-            if return_X:
-                if self.rescaling_factor is not None:
-                    imagery_array = imagery_array * self.rescaling_factor
-
-            # Resize output
-            # TODO: add attribute to change the `mode` parameter
-            if self.output_shape is not None:
-                if label_array.shape != self.output_shape:
-
-                    label_array = skimage.transform.resize(
-                        image=label_array,
+            labels = rasterio.plot.reshape_as_image(labels)
+            imagery = rasterio.plot.reshape_as_image(imagery)
+            
+            if labels.shape != self.output_shape != None:
+                    labels = skimage.transform.resize(
+                        image=labels,
                         output_shape=(*self.output_shape, 1),
-                        mode="constant",
+                        mode=self.resizing_method,
                         preserve_range=True,
                     )
+                    imagery = skimage.transform.resize(
+                        image=imagery,
+                        output_shape=(*self.output_shape, len(self.bands)),
+                        mode=self.resizing_method,
+                    )
 
-                    if return_X:
-                        imagery_array = skimage.transform.resize(
-                            image=imagery_array,
-                            output_shape=(*self.output_shape, len(self.bands)),
-                            mode="constant",
-                        )
-
-                Y[index] = label_array
-                if return_X:
-                    X[index] = imagery_array
-
-        if not return_X:
-            return Y
+            Y[index] = labels
+            X[index] = imagery
 
         return X, Y
 
@@ -281,7 +282,6 @@ class PatchFlow(keras.utils.Sequence):
             "column": column_id,
             "row": row_id,
             "window": window,
-            "window_shape": (window.width, window.height),
             "imagery_path": paths["imagery_path"],
             "labels_path": paths["labels_path"],
         }
