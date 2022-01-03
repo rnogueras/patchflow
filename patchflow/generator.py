@@ -1,5 +1,4 @@
 """PatchFlow class."""
-
 import math
 
 import numpy as np
@@ -28,7 +27,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
         filler_label=0,
         padding_method="symmetric",
         output_shape=None,
-        resizing_method="contstant",
+        resizing_method="constant",
         rescaling_factor=None,
         shuffle=True,
         random_seed=None,
@@ -71,13 +70,13 @@ class PatchFlowGenerator(keras.utils.Sequence):
                 f"{len(patch_ids)} patches have been set up in this generator."
             )
         return patch_ids
-    
+
     # TODO: Add greedy mode
     def init_grid_shape(self):
         """Initialize grid shape."""
         grid_shape = np.array(self.tile_shape) // np.array(self.patch_shape)
         return grid_shape.tolist()
-        
+
     def init_rng(self, random_seed):
         """Initialize random number generator."""
         if random_seed is None:
@@ -155,15 +154,14 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
         return proportion_array / np.sum(proportion_array)
 
-    # TODO: Add some more plot arguments
-    # TODO: Add kwargs
-    # TODO: Add general legend for all the label colors in the plot grid
     def plot_batch(
         self,
         batch_id=None,
         grid_width=5,
         grid_height=5,
         figure_size=(14, 14),
+        imagery_kwargs={},
+        labels_kwargs={},
     ):
         """Plot imagery and labels of a set of patches from the next batch."""
 
@@ -172,13 +170,18 @@ class PatchFlowGenerator(keras.utils.Sequence):
         else:
             X_batch, Y_batch = next(self)
 
-        # Plot
+        if "legend" not in labels_kwargs:
+            labels_kwargs["legend"] = False
+
         plt.figure(figsize=figure_size)
+
         for index in range(grid_height * grid_width):
             ax = plt.subplot(grid_height, grid_width, index + 1)
-            plot_imagery(X_batch[index], raster_shape=False, ax=ax)
-            plot_labels(Y_batch[index], legend=False, ax=ax)
             ax.set_title(self.current_batch[index])
+            plot_imagery(
+                X_batch[index], raster_shape=False, ax=ax, **imagery_kwargs
+            )
+            plot_labels(Y_batch[index], ax=ax, **labels_kwargs)
 
         plt.show()
 
@@ -189,19 +192,17 @@ class PatchFlowGenerator(keras.utils.Sequence):
         X = np.empty((self.batch_size, *self.output_shape, len(self.bands)))
 
         for index, patch_id in enumerate(self.current_batch):
-            
+
             patch_meta = self.get_patch_meta(patch_id)
 
             with rasterio.open(patch_meta["labels_path"]) as src:
                 labels = src.read([1], window=patch_meta["window"])
             with rasterio.open(patch_meta["imagery_path"]) as src:
-                imagery = src.read(
-                    self.bands, window=patch_meta["window"]
-                )
+                imagery = src.read(self.bands, window=patch_meta["window"])
 
             labels_shape = labels.squeeze().shape
             imagery_shape = imagery[0, :, :].shape
-            
+
             if labels_shape == imagery_shape != self.patch_shape:
                 if labels_shape[0] and labels_shape[1]:
                     labels = pad(
@@ -213,7 +214,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
                         raster=imagery,
                         out_shape=(*self.patch_shape,),
                         method=self.padding_method,
-                    ) 
+                    )
                 else:
                     labels = np.full(
                         shape=(1, *self.patch_shape),
@@ -222,7 +223,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
                     )
                     imagery = np.zeros(
                         shape=(len(self.bands), *self.patch_shape),
-                        dtype=np.uint8
+                        dtype=np.uint8,
                     )
 
             elif labels_shape != imagery_shape != self.patch_shape:
@@ -232,28 +233,27 @@ class PatchFlowGenerator(keras.utils.Sequence):
                     dtype=np.uint8,
                 )
                 imagery = np.zeros(
-                    shape=(len(self.bands), *self.patch_shape),
-                    dtype=np.uint8
+                    shape=(len(self.bands), *self.patch_shape), dtype=np.uint8
                 )
-                
+
             if self.rescaling_factor is not None:
                 imagery = imagery * self.rescaling_factor
 
             labels = rasterio.plot.reshape_as_image(labels)
             imagery = rasterio.plot.reshape_as_image(imagery)
-            
-            if labels.shape != self.output_shape != None:
-                    labels = skimage.transform.resize(
-                        image=labels,
-                        output_shape=(*self.output_shape, 1),
-                        mode=self.resizing_method,
-                        preserve_range=True,
-                    )
-                    imagery = skimage.transform.resize(
-                        image=imagery,
-                        output_shape=(*self.output_shape, len(self.bands)),
-                        mode=self.resizing_method,
-                    )
+
+            if labels.squeeze().shape != self.output_shape != None:
+                labels = skimage.transform.resize(
+                    image=labels,
+                    output_shape=(*self.output_shape, 1),
+                    mode=self.resizing_method,
+                    preserve_range=True,
+                )
+                imagery = skimage.transform.resize(
+                    image=imagery,
+                    output_shape=(*self.output_shape, len(self.bands)),
+                    mode=self.resizing_method,
+                )
 
             Y[index] = labels
             X[index] = imagery
@@ -286,17 +286,27 @@ class PatchFlowGenerator(keras.utils.Sequence):
             "labels_path": paths["labels_path"],
         }
 
-    def plot_tile_grid(
+    def plot_grid(
         self,
-        tile_id,
+        patch_id=None,
+        tile_id=None,
         show_labels=False,
         patch_id_color="white",
         patch_id_size="x-large",
         grid_color="white",
         linewidth=3,
         figsize=(10, 10),
+        imagery_kwargs={},
+        labels_kwargs={},
     ):
         """Plot tile and its grid of patches."""
+
+        if patch_id is not None:
+            tile_id = self.get_patch_meta(patch_id)["tile"]
+
+        if patch_id is None and tile_id is None:
+            raise ValueError("Either patch_id or tile_id must be provided.")
+
         sorted_patch_ids = np.arange(len(self.patch_ids))
         tile_patch_ids = sorted_patch_ids[
             tile_id * self.grid_size : (tile_id + 1) * self.grid_size
@@ -321,11 +331,17 @@ class PatchFlowGenerator(keras.utils.Sequence):
             linewidth=linewidth,
         )
 
+        if "show_axis" not in imagery_kwargs:
+            imagery_kwargs["show_axis"] = True
+
+        if "show_axis" not in labels_kwargs:
+            labels_kwargs["show_axis"] = True
+
         # Plot imagery and labels
         paths = self.paired_paths.iloc[tile_id]
-        plot_imagery(paths["imagery_path"], ax=ax, show_axis=True)
+        plot_imagery(paths["imagery_path"], ax=ax, **imagery_kwargs)
         if show_labels:
-            plot_labels(paths["labels_path"], ax=ax, show_axis=True)
+            plot_labels(paths["labels_path"], ax=ax, **labels_kwargs)
 
         # Plot ids
         for row in range(self.grid_shape[1]):

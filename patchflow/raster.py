@@ -31,10 +31,10 @@ def pad(raster, out_shape, method="symmetric"):
         raise ValueError(
             f"Invalid shape: {raster.shape}. The input array must have"
             " three positive dimensions: (bands, width, height)."
-    )
+        )
 
-    # Using np.ceil to deal with uneven numbers. It is
-    # better to get a larger array and crop it later on.
+    # Using np.ceil to deal with uneven numbers (it is
+    # better to get a larger array and crop it afterwards).
     pad_width = (
         int(np.ceil((out_shape[0] - raster.shape[1]) / 2)),
         int(np.ceil((out_shape[1] - raster.shape[2]) / 2)),
