@@ -1,4 +1,3 @@
-#%%
 """Functions for plotting imagery and labels."""
 
 from pathlib import Path
@@ -20,7 +19,6 @@ def plot_imagery(
     raster,
     window=None,
     bands=[1, 2, 3],
-    normalize_bands=False,
     raster_shape=True,
     show_axis=False,
     ax=None,
@@ -72,11 +70,6 @@ def plot_imagery(
 
     if raster_shape:
         raster = rasterio.plot.reshape_as_image(raster)
-
-    # TODO: cannot use enumerate on an image shaped array!
-    if normalize_bands:
-        for index, band in enumerate(raster):
-            raster[:, :, index] = rasterio.plot.adjust_band(band)
 
     ax.imshow(raster, **kwargs)
 

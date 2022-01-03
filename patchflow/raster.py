@@ -24,7 +24,7 @@ def get_proportions(raster):
 
 # TODO: add documentation
 def pad(raster, out_shape, method="symmetric"):
-    """Pad array to match the output_shape. The input array
+    """Pad array to match the out_shape. The input array
     must be shaped as a raster, namely: (bands, width, height).
     """
     if not raster.shape[0] or not raster.shape[1] or not raster.shape[2]:

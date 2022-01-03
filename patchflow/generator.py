@@ -290,7 +290,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
         self,
         patch_id=None,
         tile_id=None,
-        show_labels=False,
+        show_labels=True,
         patch_id_color="white",
         patch_id_size="x-large",
         grid_color="white",
