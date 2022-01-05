@@ -180,3 +180,86 @@ def plot_labels(
         plt.show()
 
     return ax
+
+
+
+# TODO: Add documentation
+def describe_sample(
+    image,
+    labels,
+    window=None,
+    bands=[1, 2, 3],
+    normalize_bands=False,
+    figure_size=(10, 8),
+    image_params={},
+    label_params={},
+    # hist_params={},
+    # bar_params={},
+) -> None:
+    """Descriptive plot about the image and labels provided."""
+
+    plt.figure(figsize=figure_size)
+    ax_1 = plt.subplot2grid((4, 4), (0, 0), colspan=2, rowspan=3)
+    ax_2 = plt.subplot2grid((4, 4), (0, 2), colspan=2, rowspan=3)
+    ax_3 = plt.subplot2grid((4, 4), (3, 0), colspan=2)
+    ax_4 = plt.subplot2grid((4, 4), (3, 2), colspan=2)
+
+    # ax 1
+    if isinstance(image, (str, Path)):
+        with rasterio.open(image) as dataset:
+            image = dataset.read(bands, window=window)
+
+    plot_raster(image, normalize_bands=normalize_bands, ax=ax_1, **image_params)
+    ax_1.axis("off")
+
+    # ax 2
+    # TODO: Labels are being plotted upside-down
+    # TODO: Improve colors, make colors match ax 4
+    if isinstance(labels, (str, Path)):
+        with rasterio.open(labels) as dataset:
+            labels = dataset.read(window=window)
+
+    plot_raster(labels, ax=ax_2, **label_params)
+    ax_2.axis("off")
+
+    # ax 3
+    # TODO: Add kwargs
+    class_proportions = get_proportions(labels)
+    values, proportions = zip(*class_proportions)
+    rasterio.plot.show_hist(
+        image,
+        ax=ax_3,
+        bins=50,
+        lw=0.0,
+        stacked=True,
+        alpha=0.4,
+        histtype="stepfilled",
+        title=None,
+    )
+    ax_3.get_legend().remove()
+    ax_3.axes.get_yaxis().set_visible(False)
+
+    # ax 4
+    # TODO: Add kwargs
+    # TODO: Make colors match ax 2
+    sns.barplot(
+        x=list(values),
+        y=list(proportions),
+        orient="v",
+        alpha=0.7,
+        ax=ax_4,
+        palette="Set1"
+    )
+    ax_4.set_ylabel(None)
+    ax_4.set_title(None)
+
+    plt.tight_layout()
+    plt.show()
+
+
+
+
+
+
+
+

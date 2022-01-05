@@ -8,7 +8,7 @@ import rasterio
 import skimage.transform
 from tensorflow import keras
 
-from raster import get_proportions, pad
+from raster import get_raster_proportions, pad
 from plot import plot_imagery, plot_labels
 
 
@@ -131,8 +131,6 @@ class PatchFlowGenerator(keras.utils.Sequence):
         if self.shuffle:
             self.shuffle_generator()
 
-    # TODO: Add more statistics.
-    # E.g.: min and max number of object pixels per class, mean, deviation...
     def estimate_proportions(self, number_of_batches=10, number_of_classes=2):
         """Estimate class proportions from a random sample of batches."""
 
@@ -141,14 +139,13 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
         for index in range(number_of_batches):
 
-            batch_patch_ids = np.random.choice(self.patch_ids, self.batch_size)
-            batch = self.load_batch(batch_patch_ids, load_imagery=False)
+            batch = next(self)
 
-            for label_array in batch:
-                array_class_proportions = get_proportions(label_array)
+            for label_array in batch[1]:
+                raster_proportions = get_raster_proportions(label_array)
 
-                for proportion in array_class_proportions:
-                    proportion_array[proportion[0]] += proportion[1]
+                for label, proportion in raster_proportions.items():
+                    proportion_array[label] += proportion
 
             progress_bar.update(index + 1)
 

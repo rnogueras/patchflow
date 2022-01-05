@@ -2,7 +2,7 @@
 import numpy as np
 
 
-def get_proportions(raster):
+def get_raster_proportions(raster):
     """Calculate pixel proportion per value in raster.
 
     Parameters
@@ -12,14 +12,13 @@ def get_proportions(raster):
 
     Returns
     -------
-    list of tuples
-        value, proportion
+    Dictionary
+        value: proportion
     """
     values, counts = np.unique(raster, return_counts=True)
     proportions = counts / raster.size
 
-    # TODO: convert this into a dictionary, update generator as well
-    return [pair for pair in zip(values, proportions)]
+    return {value: proportion for value, proportion in zip(values, proportions)}
 
 
 # TODO: add documentation
