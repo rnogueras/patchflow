@@ -1,5 +1,5 @@
 """Functions for plotting imagery and labels."""
-
+#%%
 from pathlib import Path
 import warnings
 
@@ -9,10 +9,26 @@ from matplotlib import pyplot as plt
 import rasterio
 import rasterio.plot
 
+from raster import get_raster_proportions
+
 # TODO: Catch the warning isolatedly
 warnings.filterwarnings("ignore")
 
-# TODO: add describe image function
+
+color_dict = dict(
+    dark_blue="#13293D",
+    black="#12130F",
+    light_blue="#2191FB",
+    white="#FFFAFF",
+    pink="#8A4F7D",
+    turquoise="#4F8A8B",
+    green="#157A6E",
+    dark_green="#104547",
+    red="#BA2D0B",
+    yellow="#E3D081",
+)
+
+STANDARD_CMAP = matplotlib.colors.ListedColormap(list(color_dict.values()))
 
 
 def plot_imagery(
@@ -39,9 +55,6 @@ def plot_imagery(
         Define which bands will be displayed and in which order.
         Positions in the list correspond to red, green and blue
         respectively. Default: `red: 1, green: 2, blue: 3`.
-    normalize_bands : bool, optional
-        If true, min-max normalization is performed on each band before
-        plotting. False by default.
     show_axis : bool, optional
         If true, the axis of the image will be displayed. False by
         default.
@@ -86,8 +99,6 @@ def plot_labels(
     labels,
     window=None,
     ignore=[0],
-    cmap="Set1",
-    alpha=0.7,
     legend=True,
     label_names=None,
     show_axis=False,
@@ -108,16 +119,10 @@ def plot_labels(
         if the raster comes as array.
     ignore : list of int, optional
         List of values that will not be displayed. Label 0 by default.
-    cmap : str, cmap, optional
-        cmap name or object used to display the labels. `Set1` by
-        default.
-    alpha : float, optional
-        Real number between 0 and 1 to control the transparency of the
-        displayed labels. By default, 0.7.
     legend : bool, optional
         If true, a legend showing the color of each label will be
         displayed.
-    legend_names : list of str, optional
+    label_names : list of str, optional
         List of names of the labels to be displayed in the legend. If
         not provided, the label values will be displayed instead.
     show_axis : bool, optional
@@ -136,13 +141,18 @@ def plot_labels(
     ax : matplotlib Axes
         Axes with plot.
     """
-    cmap = matplotlib.cm.get_cmap(cmap)
 
     if "interpolation" not in kwargs:
         kwargs["interpolation"] = "nearest"
+        
+    if "cmap" not in kwargs:
+        kwargs["cmap"] = STANDARD_CMAP
+        
+    if "alpha" not in kwargs:
+        kwargs["alpha"] = 0.7
 
-    if "vmax" not in kwargs:
-        kwargs["vmax"] = cmap.N
+    # if "vmax" not in kwargs:
+    #     kwargs["vmax"] = cmap.N
 
     if isinstance(labels, (str, Path)):
         with rasterio.open(labels) as src:
@@ -158,7 +168,7 @@ def plot_labels(
         show = True
         ax = plt.gca()
 
-    plt.imshow(labels, cmap=cmap, alpha=alpha, **kwargs)
+    ax.imshow(labels, **kwargs)
 
     if legend:
 
@@ -167,8 +177,10 @@ def plot_labels(
             label_names = [str(value) for value in np.unique(non_nan_values)]
 
         categories = [
-            matplotlib.patches.Patch([0], [0], color=color, alpha=alpha)
-            for color in cmap.colors
+            matplotlib.patches.Patch(
+                [0], [0], color=color, alpha=kwargs["alpha"]
+            )
+            for color in kwargs["cmap"].colors
         ]
 
         ax.legend(categories, label_names)
@@ -182,84 +194,141 @@ def plot_labels(
     return ax
 
 
+# TODO: docstring
+def plot_histogram(
+    raster,
+    window=None,
+    bands=[1, 2, 3],
+    show_axis=True,
+    ax=None,
+    **kwargs,
+):
 
-# TODO: Add documentation
-def describe_sample(
-    image,
+    if "histtype" not in kwargs:
+        kwargs["histtype"] = "step"
+
+    if "color" not in kwargs:
+        kwargs["color"] = [
+            color_dict["red"], color_dict["green"], color_dict["dark_blue"]
+        ]
+
+    if "stacked" not in kwargs:
+        kwargs["stacked"] = True
+    
+    if "fill" not in kwargs:
+        kwargs["fill"] = True
+    
+    if isinstance(raster, (str, Path)):
+        with rasterio.open(raster) as src:
+            raster = src.read(bands, window=window)
+    
+    # TODO: Handle nodata here, convert to nans and then ignore them
+    value_range = np.nanmin(raster), np.nanmax(raster)
+
+    show = False
+    if not ax:
+        show = True
+        ax = plt.gca()
+
+    ax.hist(
+        x=raster.reshape(raster.shape[0], -1).T,
+        range=value_range,
+        **kwargs,
+    )
+
+    if not show_axis:
+        ax.axis("off")
+
+    if show:
+        plt.show()
+
+    return ax
+
+
+# TODO: docstring
+# TODO: fix x axis (show continuous variable instead of discrete)
+def plot_proportions(
+    labels,
+    cmap=STANDARD_CMAP,
+    window=None,
+    ax=None,
+    show_axis=True,
+    **kwargs,
+):
+    
+    if isinstance(labels, (str, Path)):
+        with rasterio.open(labels) as src:
+            labels = src.read(1, window=window)
+        
+    class_proportions = get_raster_proportions(labels)
+    labels = list(class_proportions.keys())
+    proportions = list(class_proportions.values())
+    rescale = lambda x: (x - np.min(x)) / (np.max(x) - np.min(x))
+    cmap = cmap.reversed()
+        
+    show = False
+    if not ax:
+        show = True
+        ax = plt.gca()
+    
+    ax.bar(
+        x=labels, 
+        height=proportions,
+        color=cmap(rescale(proportions)),
+        **kwargs
+    )
+    
+    if not show_axis:
+        ax.axis("off")
+
+    if show:
+        plt.show()
+
+
+# TODO: docstring
+def describe(
+    raster,
     labels,
     window=None,
     bands=[1, 2, 3],
-    normalize_bands=False,
     figure_size=(10, 8),
     image_params={},
     label_params={},
-    # hist_params={},
-    # bar_params={},
+    hist_params={},
+    bar_params={},
 ) -> None:
     """Descriptive plot about the image and labels provided."""
 
-    plt.figure(figsize=figure_size)
-    ax_1 = plt.subplot2grid((4, 4), (0, 0), colspan=2, rowspan=3)
-    ax_2 = plt.subplot2grid((4, 4), (0, 2), colspan=2, rowspan=3)
-    ax_3 = plt.subplot2grid((4, 4), (3, 0), colspan=2)
-    ax_4 = plt.subplot2grid((4, 4), (3, 2), colspan=2)
-
-    # ax 1
-    if isinstance(image, (str, Path)):
-        with rasterio.open(image) as dataset:
-            image = dataset.read(bands, window=window)
-
-    plot_raster(image, normalize_bands=normalize_bands, ax=ax_1, **image_params)
-    ax_1.axis("off")
-
-    # ax 2
-    # TODO: Labels are being plotted upside-down
-    # TODO: Improve colors, make colors match ax 4
+    if "ignore" not in label_params:
+        label_params["ignore"] = []
+    
+    if "legend" not in label_params:
+        label_params["legend"] = False
+        
+    if "alpha" not in label_params:
+        label_params["alpha"] = 1
+        
+    if isinstance(raster, (str, Path)):
+        with rasterio.open(raster) as src:
+            raster = src.read(bands, window=window)
+            
     if isinstance(labels, (str, Path)):
-        with rasterio.open(labels) as dataset:
-            labels = dataset.read(window=window)
+        with rasterio.open(labels) as src:
+            labels = src.read(1, window=window)
 
-    plot_raster(labels, ax=ax_2, **label_params)
-    ax_2.axis("off")
+    plt.figure(figsize=figure_size)
 
-    # ax 3
-    # TODO: Add kwargs
-    class_proportions = get_proportions(labels)
-    values, proportions = zip(*class_proportions)
-    rasterio.plot.show_hist(
-        image,
-        ax=ax_3,
-        bins=50,
-        lw=0.0,
-        stacked=True,
-        alpha=0.4,
-        histtype="stepfilled",
-        title=None,
-    )
-    ax_3.get_legend().remove()
-    ax_3.axes.get_yaxis().set_visible(False)
+    ax_1 = plt.subplot2grid((4, 4), (0, 0), colspan=2, rowspan=3)
+    plot_imagery(raster=raster, ax=ax_1, **image_params)
 
-    # ax 4
-    # TODO: Add kwargs
-    # TODO: Make colors match ax 2
-    sns.barplot(
-        x=list(values),
-        y=list(proportions),
-        orient="v",
-        alpha=0.7,
-        ax=ax_4,
-        palette="Set1"
-    )
-    ax_4.set_ylabel(None)
-    ax_4.set_title(None)
+    ax_2 = plt.subplot2grid((4, 4), (0, 2), colspan=2, rowspan=3)
+    plot_labels(labels=labels, ax=ax_2, **label_params)
 
+    ax_3 = plt.subplot2grid((4, 4), (3, 0), colspan=2)
+    plot_histogram(raster=raster, ax=ax_3, **hist_params)
+
+    ax_4 = plt.subplot2grid((4, 4), (3, 2), colspan=2)
+    plot_proportions(labels=labels, ax=ax_4, **bar_params)
+    
     plt.tight_layout()
     plt.show()
-
-
-
-
-
-
-
-
