@@ -1,5 +1,4 @@
 """Functions for plotting imagery and labels."""
-#%%
 from pathlib import Path
 import warnings
 
@@ -16,16 +15,12 @@ warnings.filterwarnings("ignore")
 
 
 color_dict = dict(
-    dark_blue="#13293D",
-    black="#12130F",
-    light_blue="#2191FB",
-    white="#FFFAFF",
-    pink="#8A4F7D",
-    turquoise="#4F8A8B",
-    green="#157A6E",
+    blue="#577590",
+    turquoise="#43AA8B",
+    green="#90BE6D",
     dark_green="#104547",
-    red="#BA2D0B",
-    yellow="#E3D081",
+    red="#F94144",
+    yellow="#F8961E",
 )
 
 STANDARD_CMAP = matplotlib.colors.ListedColormap(list(color_dict.values()))
@@ -98,7 +93,7 @@ def plot_imagery(
 def plot_labels(
     labels,
     window=None,
-    ignore=[0],
+    ignore=[],
     legend=True,
     label_names=None,
     show_axis=False,
@@ -151,17 +146,20 @@ def plot_labels(
     if "alpha" not in kwargs:
         kwargs["alpha"] = 0.7
 
-    # if "vmax" not in kwargs:
-    #     kwargs["vmax"] = cmap.N
-
     if isinstance(labels, (str, Path)):
         with rasterio.open(labels) as src:
             labels = src.read(1, window=window)
 
     labels = labels.squeeze()
+    
+    label_values = np.unique(labels)
+    cmap_index = label_values / (len(label_values) - 1)
 
-    if ignore is not None:
-        labels = np.where(np.isin(labels, ignore), np.nan, labels)
+    if ignore:
+        # set alphas of ignored values to 0
+        cmap_array = kwargs["cmap"](cmap_index)
+        cmap_array[np.isin(label_values, ignore), -1] = 0 
+        kwargs["cmap"] = matplotlib.colors.ListedColormap(cmap_array)
 
     show = False
     if not ax:
@@ -172,16 +170,18 @@ def plot_labels(
 
     if legend:
 
-        if label_names is None:
-            non_nan_values = labels[~np.isnan(labels)]
-            label_names = [str(value) for value in np.unique(non_nan_values)]
+        cmap_valid_indexes = cmap_index[~np.isin(label_values, ignore)]
+        valid_color_codes = kwargs["cmap"](cmap_valid_indexes)
 
         categories = [
             matplotlib.patches.Patch(
-                [0], [0], color=color, alpha=kwargs["alpha"]
+                [0], [0], color=color_code, alpha=kwargs["alpha"]
             )
-            for color in kwargs["cmap"].colors
+            for color_code in valid_color_codes
         ]
+        
+        if label_names is None:
+            label_names = label_values[~np.isin(label_values, ignore)]
 
         ax.legend(categories, label_names)
 
@@ -209,7 +209,7 @@ def plot_histogram(
 
     if "color" not in kwargs:
         kwargs["color"] = [
-            color_dict["red"], color_dict["green"], color_dict["dark_blue"]
+            color_dict["red"], color_dict["green"], color_dict["blue"]
         ]
 
     if "stacked" not in kwargs:
@@ -246,7 +246,7 @@ def plot_histogram(
 
 
 # TODO: docstring
-# TODO: fix x axis (show continuous variable instead of discrete)
+# TODO: fix x axis (it shows a continuous variable instead of a discrete one)
 def plot_proportions(
     labels,
     cmap=STANDARD_CMAP,
@@ -292,7 +292,7 @@ def describe(
     window=None,
     bands=[1, 2, 3],
     figure_size=(10, 8),
-    image_params={},
+    raster_params={},
     label_params={},
     hist_params={},
     bar_params={},
@@ -319,7 +319,7 @@ def describe(
     plt.figure(figsize=figure_size)
 
     ax_1 = plt.subplot2grid((4, 4), (0, 0), colspan=2, rowspan=3)
-    plot_imagery(raster=raster, ax=ax_1, **image_params)
+    plot_imagery(raster=raster, ax=ax_1, **raster_params)
 
     ax_2 = plt.subplot2grid((4, 4), (0, 2), colspan=2, rowspan=3)
     plot_labels(labels=labels, ax=ax_2, **label_params)
