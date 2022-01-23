@@ -1,5 +1,4 @@
 """Functions for plotting imagery and labels."""
-#%%
 from typing import Optional, Union, Sequence, Any, Type
 from pathlib import Path
 import warnings
@@ -15,7 +14,7 @@ from raster import get_raster_proportions
 # TODO: Catch the warning isolatedly
 warnings.filterwarnings("ignore")
 
-RasterType = Union[np.array, str, Path]
+RasterType = Union[np.ndarray, str, Path]
 WindowType = Type[rasterio.windows.Window]
 ColorMapType = Type[matplotlib.colors.ListedColormap]
 
@@ -50,7 +49,9 @@ def plot_imagery(
             Ignored if the raster comes as array.
         bands: Define which bands will be displayed and in which order.
             Positions in the list correspond to red, green and blue
-            respectively. Default: `red: 1, green: 2, blue: 3`.
+            respectively. Default: [1, 2, 3].
+        raster_shape: Whether the raster dimensions match the raster
+            standard (band, width, height). Default: True.
         show_axis: If true, the axis of the image will be displayed.
             False by default.
         ax: Axes to plot on. Otherwise, use current axes.
@@ -91,7 +92,7 @@ def plot_imagery(
 def plot_labels(
     labels: RasterType,
     window: Optional[WindowType] = None,
-    disable: Optional[Sequence[int]] = None,
+    transparent: Optional[Sequence[int]] = None,
     legend: bool = True,
     label_names: Optional[Sequence[str]] = None,
     show_axis: bool = False,
@@ -101,13 +102,13 @@ def plot_labels(
     """Plot pixel label array.
 
     Args:
-        labels: Categorical raster to plot. If string or pathlib. Path object,
+        labels: Discrete raster to plot. If string or pathlib. Path object,
             it will be interpreted as a path and open using rasterio. If
             array, it is expected to have two dimensions.
         window: A rasterio window to plot only a subset of the raster. Ignored
             if the raster comes as array.
-        disable: List of values not to be displayed. The alpha of this
-            values will be automatically set to 0.
+        transparent: List of label values to make transparent. The alpha
+            of this values will be set to 0.
         legend: If true, a legend showing the color of each label will be
             displayed.
         label_names: List of names of the labels to be displayed in the legend.
@@ -141,10 +142,10 @@ def plot_labels(
     label_values = np.unique(labels)
     cmap_index = label_values / (len(label_values) - 1)
 
-    if disable is not None:
+    if transparent is not None:
         # set alpha of values in disabled list to 0
         cmap_array = kwargs["cmap"](cmap_index)
-        cmap_array[np.isin(label_values, disable), -1] = 0
+        cmap_array[np.isin(label_values, transparent), -1] = 0
         kwargs["cmap"] = matplotlib.colors.ListedColormap(cmap_array)
 
     show = False
@@ -156,16 +157,18 @@ def plot_labels(
 
     if legend:
 
-        cmap_valid_indexes = cmap_index[~np.isin(label_values, disable)]
-        color_codes_valid = kwargs["cmap"](cmap_valid_indexes)
+        cmap_valid_indexes = cmap_index[~np.isin(label_values, transparent)]
+        valid_color_codes = kwargs["cmap"](cmap_valid_indexes)
 
         categories = [
-            matplotlib.patches.Patch([0], [0], color=color_code, alpha=kwargs["alpha"])
-            for color_code in color_codes_valid
+            matplotlib.patches.Patch(
+                [0], [0], color=color_code, alpha=kwargs["alpha"]
+            )
+            for color_code in valid_color_codes
         ]
 
         if label_names is None:
-            label_names = label_values[~np.isin(label_values, disable)]
+            label_names = label_values[~np.isin(label_values, transparent)]
 
         ax.legend(categories, label_names)
 
@@ -291,8 +294,9 @@ def plot_proportions(
             labels = src.read(1, window=window)
 
     class_proportions = get_raster_proportions(labels)
-    labels = list(class_proportions.keys())
+    label_values = list(class_proportions.keys())
     proportions = list(class_proportions.values())
+    # TODO: put rescale function in raster module
     rescale = lambda x: (x - np.min(x)) / (np.max(x) - np.min(x))
     cmap = cmap.reversed()
 
@@ -301,7 +305,12 @@ def plot_proportions(
         show = True
         ax = plt.gca()
 
-    ax.bar(x=labels, height=proportions, color=cmap(rescale(proportions)), **kwargs)
+    ax.bar(
+        x=label_values,
+        height=proportions,
+        color=cmap(rescale(proportions)),
+        **kwargs,
+    )
 
     if not show_axis:
         ax.axis("off")
@@ -367,21 +376,3 @@ def describe(
 
     plt.tight_layout()
     plt.show()
-
-
-# #%%
-# from rasterio.windows import Window
-# window = Window(5000, 0, 1000, 1000)
-
-# labels = "/home/robert/robert/roofs_dataset/train/label/christchurch_512.tif"
-# imagery = "/home/robert/robert/roofs_dataset/train/image/christchurch_512.tif"
-
-# fig, ax = plt.subplots(figsize=(10, 10))
-# plot_imagery(imagery, window=window, ax=ax)
-# plot_labels(labels, window=window, ax=ax)
-
-# #%%
-
-
-# describe(imagery, labels, window=window)
-# #%%
