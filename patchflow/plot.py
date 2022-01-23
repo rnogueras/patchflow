@@ -1,6 +1,6 @@
 """Functions for plotting imagery and labels."""
 #%%
-from typing import Optional, Union, Sequence, Dict, Any, Type
+from typing import Optional, Union, Sequence, Any, Type
 from pathlib import Path
 import warnings
 
@@ -91,7 +91,7 @@ def plot_imagery(
 def plot_labels(
     labels: RasterType,
     window: Optional[WindowType] = None,
-    ignore: Optional[Sequence[int]] = None,
+    disable: Optional[Sequence[int]] = None,
     legend: bool = True,
     label_names: Optional[Sequence[str]] = None,
     show_axis: bool = False,
@@ -106,7 +106,8 @@ def plot_labels(
             array, it is expected to have two dimensions.
         window: A rasterio window to plot only a subset of the raster. Ignored
             if the raster comes as array.
-        ignore: List of values not to be displayed.
+        disable: List of values not to be displayed. The alpha of this
+            values will be automatically set to 0.
         legend: If true, a legend showing the color of each label will be
             displayed.
         label_names: List of names of the labels to be displayed in the legend.
@@ -140,10 +141,10 @@ def plot_labels(
     label_values = np.unique(labels)
     cmap_index = label_values / (len(label_values) - 1)
 
-    if ignore is not None:
-        # set alphas of ignored values to 0
+    if disable is not None:
+        # set alpha of values in disabled list to 0
         cmap_array = kwargs["cmap"](cmap_index)
-        cmap_array[np.isin(label_values, ignore), -1] = 0
+        cmap_array[np.isin(label_values, disable), -1] = 0
         kwargs["cmap"] = matplotlib.colors.ListedColormap(cmap_array)
 
     show = False
@@ -155,16 +156,16 @@ def plot_labels(
 
     if legend:
 
-        cmap_valid_indexes = cmap_index[~np.isin(label_values, ignore)]
-        valid_color_codes = kwargs["cmap"](cmap_valid_indexes)
+        cmap_valid_indexes = cmap_index[~np.isin(label_values, disable)]
+        color_codes_valid = kwargs["cmap"](cmap_valid_indexes)
 
         categories = [
             matplotlib.patches.Patch([0], [0], color=color_code, alpha=kwargs["alpha"])
-            for color_code in valid_color_codes
+            for color_code in color_codes_valid
         ]
 
         if label_names is None:
-            label_names = label_values[~np.isin(label_values, ignore)]
+            label_names = label_values[~np.isin(label_values, disable)]
 
         ax.legend(categories, label_names)
 
@@ -317,10 +318,6 @@ def describe(
     window: Optional[WindowType] = None,
     bands: Optional[Sequence[int]] = None,
     figure_size: Sequence[int] = (10, 8),
-    imagery_params: Optional[Dict[str, Any]] = None,
-    label_params: Optional[Dict[str, Any]] = None,
-    hist_params: Optional[Dict[str, Any]] = None,
-    bar_params: Optional[Dict[str, Any]] = None,
 ) -> None:
     """Describe labelled raster plotting imagery, labels, histogram
     and proportions together in a grid.
@@ -338,14 +335,6 @@ def describe(
             respectively. Default: `red: 1, green: 2, blue: 3`.
         figure_size: Width and height of the figure in inches.
             Defaults to (10, 8).
-        imagery_params: Dictionary of argument and values for the
-            plot_imagery function. Empty dictionary by default.
-        label_params: Dictionary of argument and values for the
-            plot_labels funtion. Empty dictionary by default.
-        hist_params: Dictionary of argument and values for the
-            plot_histogram function. Empty dictionary by default.
-        bar_params: Dictionary of argument and values for the
-            plot_proportions function. Empty dictionary by default.
 
     Returns:
         None
@@ -353,15 +342,6 @@ def describe(
 
     if bands is None:
         bands = [1, 2, 3]
-
-    if "ignore" not in label_params:
-        label_params["ignore"] = []
-
-    if "legend" not in label_params:
-        label_params["legend"] = False
-
-    if "alpha" not in label_params:
-        label_params["alpha"] = 1
 
     if isinstance(imagery, (str, Path)):
         with rasterio.open(imagery) as src:
@@ -374,16 +354,16 @@ def describe(
     plt.figure(figsize=figure_size)
 
     ax_1 = plt.subplot2grid((4, 4), (0, 0), colspan=2, rowspan=3)
-    plot_imagery(imagery=imagery, ax=ax_1, **imagery_params)
+    plot_imagery(imagery=imagery, bands=bands, ax=ax_1)
 
     ax_2 = plt.subplot2grid((4, 4), (0, 2), colspan=2, rowspan=3)
-    plot_labels(labels=labels, ax=ax_2, **label_params)
+    plot_labels(labels=labels, ax=ax_2, alpha=1, legend=False)
 
     ax_3 = plt.subplot2grid((4, 4), (3, 0), colspan=2)
-    plot_histogram(imagery=imagery, ax=ax_3, **hist_params)
+    plot_histogram(imagery=imagery, ax=ax_3)
 
     ax_4 = plt.subplot2grid((4, 4), (3, 2), colspan=2)
-    plot_proportions(labels=labels, ax=ax_4, **bar_params)
+    plot_proportions(labels=labels, ax=ax_4)
 
     plt.tight_layout()
     plt.show()
@@ -391,7 +371,7 @@ def describe(
 
 # #%%
 # from rasterio.windows import Window
-# window = Window(5000, 0, 5000, 5000)
+# window = Window(5000, 0, 1000, 1000)
 
 # labels = "/home/robert/robert/roofs_dataset/train/label/christchurch_512.tif"
 # imagery = "/home/robert/robert/roofs_dataset/train/image/christchurch_512.tif"
@@ -400,4 +380,8 @@ def describe(
 # plot_imagery(imagery, window=window, ax=ax)
 # plot_labels(labels, window=window, ax=ax)
 
-# # %%
+# #%%
+
+
+# describe(imagery, labels, window=window)
+# #%%
