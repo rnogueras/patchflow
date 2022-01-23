@@ -1,5 +1,5 @@
 """Functions for plotting imagery and labels."""
-
+#%%
 from typing import Optional, Union, Sequence, Dict, Any, Type
 from pathlib import Path
 import warnings
@@ -34,7 +34,7 @@ STANDARD_CMAP = matplotlib.colors.ListedColormap(list(COLOR_CODES.values()))
 def plot_imagery(
     imagery: RasterType,
     window: Optional[WindowType] = None,
-    bands: Sequence[int] = [1, 2, 3],
+    bands: Optional[Sequence[int]] = None,
     raster_shape: bool = True,
     show_axis: bool = False,
     ax: Optional[plt.Axes] = None,
@@ -62,6 +62,9 @@ def plot_imagery(
         Axes with plot.
     """
 
+    if bands is None:
+        bands = [1, 2, 3]
+
     if isinstance(imagery, (str, Path)):
         with rasterio.open(imagery) as src:
             imagery = src.read(bands, window=window)
@@ -88,9 +91,9 @@ def plot_imagery(
 def plot_labels(
     labels: RasterType,
     window: Optional[WindowType] = None,
-    ignore: Sequence[int] = [],
+    ignore: Optional[Sequence[int]] = None,
     legend: bool = True,
-    label_names: Sequence[str] = [],
+    label_names: Optional[Sequence[str]] = None,
     show_axis: bool = False,
     ax: Optional[plt.Axes] = None,
     **kwargs: Any,
@@ -103,7 +106,7 @@ def plot_labels(
             array, it is expected to have two dimensions.
         window: A rasterio window to plot only a subset of the raster. Ignored
             if the raster comes as array.
-        ignore: List of values that will not be displayed. Label 0 by default.
+        ignore: List of values not to be displayed.
         legend: If true, a legend showing the color of each label will be
             displayed.
         label_names: List of names of the labels to be displayed in the legend.
@@ -137,7 +140,7 @@ def plot_labels(
     label_values = np.unique(labels)
     cmap_index = label_values / (len(label_values) - 1)
 
-    if ignore:
+    if ignore is not None:
         # set alphas of ignored values to 0
         cmap_array = kwargs["cmap"](cmap_index)
         cmap_array[np.isin(label_values, ignore), -1] = 0
@@ -156,13 +159,11 @@ def plot_labels(
         valid_color_codes = kwargs["cmap"](cmap_valid_indexes)
 
         categories = [
-            matplotlib.patches.Patch(
-                [0], [0], color=color_code, alpha=kwargs["alpha"]
-            )
+            matplotlib.patches.Patch([0], [0], color=color_code, alpha=kwargs["alpha"])
             for color_code in valid_color_codes
         ]
 
-        if label_names:
+        if label_names is None:
             label_names = label_values[~np.isin(label_values, ignore)]
 
         ax.legend(categories, label_names)
@@ -179,7 +180,7 @@ def plot_labels(
 def plot_histogram(
     imagery: RasterType,
     window: Optional[WindowType] = None,
-    bands: Sequence[int] = [1, 2, 3],
+    bands: Optional[Sequence[int]] = None,
     show_axis: bool = True,
     ax: Optional[plt.Axes] = None,
     **kwargs: Any,
@@ -208,6 +209,9 @@ def plot_histogram(
     Returns:
         Axes with plot.
     """
+
+    if bands is None:
+        bands = [1, 2, 3]
 
     if "histtype" not in kwargs:
         kwargs["histtype"] = "step"
@@ -296,9 +300,7 @@ def plot_proportions(
         show = True
         ax = plt.gca()
 
-    ax.bar(
-        x=labels, height=proportions, color=cmap(rescale(proportions)), **kwargs
-    )
+    ax.bar(x=labels, height=proportions, color=cmap(rescale(proportions)), **kwargs)
 
     if not show_axis:
         ax.axis("off")
@@ -313,12 +315,12 @@ def describe(
     imagery: RasterType,
     labels: RasterType,
     window: Optional[WindowType] = None,
-    bands: Sequence[int] = [1, 2, 3],
+    bands: Optional[Sequence[int]] = None,
     figure_size: Sequence[int] = (10, 8),
-    imagery_params: Dict[str, Any] = {},
-    label_params: Dict[str, Any] = {},
-    hist_params: Dict[str, Any] = {},
-    bar_params: Dict[str, Any] = {},
+    imagery_params: Optional[Dict[str, Any]] = None,
+    label_params: Optional[Dict[str, Any]] = None,
+    hist_params: Optional[Dict[str, Any]] = None,
+    bar_params: Optional[Dict[str, Any]] = None,
 ) -> None:
     """Describe labelled raster plotting imagery, labels, histogram
     and proportions together in a grid.
@@ -348,6 +350,10 @@ def describe(
     Returns:
         None
     """
+
+    if bands is None:
+        bands = [1, 2, 3]
+
     if "ignore" not in label_params:
         label_params["ignore"] = []
 
@@ -381,3 +387,17 @@ def describe(
 
     plt.tight_layout()
     plt.show()
+
+
+# #%%
+# from rasterio.windows import Window
+# window = Window(5000, 0, 5000, 5000)
+
+# labels = "/home/robert/robert/roofs_dataset/train/label/christchurch_512.tif"
+# imagery = "/home/robert/robert/roofs_dataset/train/image/christchurch_512.tif"
+
+# fig, ax = plt.subplots(figsize=(10, 10))
+# plot_imagery(imagery, window=window, ax=ax)
+# plot_labels(labels, window=window, ax=ax)
+
+# # %%
