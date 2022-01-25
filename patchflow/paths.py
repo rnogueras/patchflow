@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 
-def generate_tile_paths(
+def generate_paired_paths(
     directory: str, imagery_folder_name="imagery", labels_folder_name="labels"
 ):
     """Generate imagery / labels paired data paths to retrieve
@@ -112,7 +112,7 @@ def generate_patch_ids(
 
     Returns
     -------
-    tuple of dictionaries
+    List of dictionaries
         Three dictionaries each of which contains the paired_paths,
         tile_shape, patche_shape and patch_indexes of a different
         subset, so that it can be easily passed to a different

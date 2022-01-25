@@ -1,7 +1,9 @@
 """PatchFlow class."""
+from typing import Optional, Sequence
 import math
 
 import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
 import matplotlib.ticker
 import rasterio
@@ -18,21 +20,69 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
     def __init__(
         self,
-        paired_paths,
-        tile_shape,
-        patch_shape,
-        patch_ids=None,
-        batch_size=32,
-        bands=[1, 2, 3],
-        filler_label=0,
-        padding_method="symmetric",
-        output_shape=None,
-        resizing_method="constant",
-        rescaling_factor=None,
-        shuffle=True,
-        random_seed=None,
+        paired_paths: pd.DataFrame,
+        tile_shape: Sequence[int],
+        patch_shape: Sequence[int],
+        patch_ids: Optional[Sequence[int]] = None,
+        batch_size: int = 32,
+        bands: Sequence[int] = [1, 2, 3],
+        filler_label: int = 0,
+        padding_method: str = "symmetric",
+        output_shape: Optional[Sequence[int]] = None,
+        resizing_method: str = "constant",
+        rescaling_factor: Optional[float] = None,
+        shuffle: bool = True,
+        random_seed: Optional[int] = None,
     ):
-        """Initialize instance."""
+        """Initialize PatchFlowGenerator. The class can be instanciated 
+        in two different ways:
+        
+            - Providing a paired paths dataframe outputted by
+                the `generate_paired_paths` function along with arbitrary 
+                tile_shape and patch_shape arguments. This way, the 
+                patch ids are automatically generated from the specified 
+                tile shape and the desired patch shapes during the 
+                initialization. 
+                
+            - Passing one of the dictionaries outputted by the
+                `generate_patch_ids` function using the ** operator.
+    
+        The patch grids generated over the tiles can be checked using the 
+        `plot_grid` method.
+
+        Args:
+            paired_paths: A dataframe containing the imagery and labels
+                paired paths of each tile as outputted by the 
+                `generate_paired_paths` function.
+            tile_shape: Tile shape in pixels. E.g.: (5000, 5000).
+            patch_shape: Patch shape in pixels. E.g.: (128, 128).
+            patch_ids: A sequence containing the patch ids that will
+                be used to calculate the patch windows over the imagery. 
+                Defaults to None.
+            batch_size: Number of patches generated per batch. Defaults 
+                to 32.
+            bands: Imagery bands to read during the data generation. 
+                Defaults to [1, 2, 3].
+            filler_label: Pixel label for the filler class. This value
+                will be used to label any empty area found during the
+                data generation. E.g.: incomplete tiles. Defaults to 0.
+            padding_method: Numpy padding method. Defaults to "symmetric". 
+                See full list at:
+                https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+            output_shape: Shape of the output images. If the output
+                shape is different from the patch shape, the images
+                will be resized during the data generation. Defaults 
+                to None.
+            resizing_method: Method used to resize the images when the 
+                patch size and output size are different. Defaults to 
+                "constant".
+            rescaling_factor: Real number used to rescale the pixel
+                values. E.g.: 1 / 255. Defaults to None.
+            shuffle: Whether to shuffle the patch ids at the end of each
+                epoch. Defaults to True.
+            random_seed: Pass an integer for reproducible output. Defaults 
+                to None.
+        """        
 
         # Paths
         self.paired_paths = paired_paths
