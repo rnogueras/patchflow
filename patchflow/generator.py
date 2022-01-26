@@ -1,5 +1,5 @@
 """PatchFlow class."""
-from typing import Type, Optional, Sequence, Tuple, Generator, Dict, Any
+from typing import Optional, Sequence, Tuple, Generator, Dict, Any
 import math
 
 import numpy as np
@@ -425,21 +425,3 @@ class PatchFlowGenerator(keras.utils.Sequence):
                     ha="center",
                     va="center",
                 )
-
-
-from pathlib import Path
-from paths import generate_paired_paths
-
-data_directory = Path("/home/robert/robert/roofs_dataset/train")
-
-paired_paths = generate_paired_paths(
-    directory=data_directory,
-    imagery_folder_name="image",
-    labels_folder_name="label",
-)
-
-generator = PatchFlowGenerator(
-    paired_paths=paired_paths,
-    tile_shape=(10000, 10000),
-    patch_shape=(1000, 1000),
-)

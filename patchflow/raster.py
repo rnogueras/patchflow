@@ -1,5 +1,13 @@
 """Functions for working with rasters."""
+from typing import Union, Type
+from pathlib import Path
+
+import rasterio
 import numpy as np
+
+
+RasterType = Union[np.ndarray, str, Path]
+WindowType = Type[rasterio.windows.Window]
 
 
 def get_raster_proportions(raster):
