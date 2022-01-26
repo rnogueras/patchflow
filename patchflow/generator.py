@@ -1,5 +1,5 @@
 """PatchFlow class."""
-from typing import Optional, Sequence, Tuple
+from typing import Type, Optional, Sequence, Tuple, Generator, Dict, Any
 import math
 
 import numpy as np
@@ -12,6 +12,9 @@ from tensorflow import keras
 
 from raster import get_raster_proportions, pad
 from plot import plot_imagery, plot_labels
+
+
+BatchType = Tuple[np.ndarray, np.ndarray]
 
 
 # TODO: Add documentation
@@ -97,9 +100,9 @@ class PatchFlowGenerator(keras.utils.Sequence):
         self.tile_shape = tile_shape
         self.grid_shape = self.init_grid_shape()
         self.grid_size = np.prod(self.grid_shape)
+        if patch_ids is None:
+            patch_ids = self.init_patch_ids()
         self.patch_ids = patch_ids
-        if self.patch_ids is None:
-            self.patch_ids = self.init_patch_ids()
 
         # Process config
         self.batch_size = batch_size
@@ -107,9 +110,9 @@ class PatchFlowGenerator(keras.utils.Sequence):
         self.rescaling_factor = rescaling_factor
         self.filler_label = filler_label
         self.padding_method = padding_method
+        if output_shape is None:
+            output_shape = self.patch_shape
         self.output_shape = output_shape
-        if self.output_shape is None:
-            self.output_shape = self.patch_shape
         self.resizing_method = resizing_method
 
         # Iteration
@@ -122,70 +125,74 @@ class PatchFlowGenerator(keras.utils.Sequence):
     def init_patch_ids(self) -> np.ndarray:
         """Generate patch id array."""
         patch_ids = np.arange(len(self.paired_paths) * self.grid_size)
-        print(f"{len(patch_ids)} patches have been set up in this generator.")  
+        print(f"{len(patch_ids)} patches have been set up in this generator.")
         return patch_ids
 
     # TODO: Add greedy mode
-    def init_grid_shape(self) -> Tuple[int]:
+    def init_grid_shape(self) -> Tuple[int, int]:
         """Calculate grid shape."""
         grid_shape = np.array(self.tile_shape) // np.array(self.patch_shape)
         return tuple(grid_shape)
 
-    def init_rng(self, random_seed):
+    def init_rng(
+        self, random_seed: Optional[int]
+    ) -> Optional[np.random.Generator]:
         """Initialize random number generator."""
         if random_seed is None:
             return None
         return np.random.default_rng(random_seed)
 
-    def __len__(self):
+    def __len__(self) -> int:
         """Return number of batches in the sequence."""
         return math.ceil(len(self.patch_ids) / self.batch_size)
 
-    def __iter__(self):
-        """Create a generator that iterates over the Sequence."""
+    def __iter__(self) -> Generator[BatchType, None, None]:
+        """Iterate over the Sequence."""
         for index in range(len(self)):
             yield self[index]
 
-    def __next__(self):
+    def __next__(self) -> BatchType:
         """Enable getting batches using next()."""
         iterator = self.iterator
         self.iterator += 1
         return self[iterator]
 
-    def __getitem__(self, index):
+    def __getitem__(self, batch_index: int) -> BatchType:
         """Get batch of patches by indexing the Sequence."""
 
-        if index >= len(self):
+        if batch_index >= len(self):
             raise IndexError("Batch index out of range.")
 
         self.current_batch = self.patch_ids[
-            index * self.batch_size : (index + 1) * self.batch_size
+            batch_index * self.batch_size : (batch_index + 1) * self.batch_size
         ]
 
         return self.load_batch()
 
-    def reset_generator(self):
+    def reset_generator(self) -> None:
         """Reset generator iterator."""
         self.iterator = 0
 
-    def shuffle_generator(self):
+    def shuffle_generator(self) -> None:
         """Shuffle patch ids."""
         if self.rng is not None:
             self.rng.shuffle(self.patch_ids)
             return
         np.random.shuffle(self.patch_ids)
 
-    def unshuffle_generator(self):
+    def unshuffle_generator(self) -> None:
         """Unshuffle generator patch ids."""
         np.ndarray.sort(self.patch_ids)
 
-    def on_epoch_end(self):
+    def on_epoch_end(self) -> None:
         """Method called at the end of every epoch."""
         self.patch_ids = np.arange(len(self.patch_ids))
         if self.shuffle:
             self.shuffle_generator()
 
-    def estimate_proportions(self, number_of_batches=10, number_of_classes=2):
+    def estimate_proportions(
+        self, number_of_batches: int = 10, number_of_classes: int = 2
+    ) -> np.ndarray:
         """Estimate class proportions from a random sample of batches."""
 
         proportion_array = np.zeros(number_of_classes, dtype=float)
@@ -209,14 +216,20 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
     def plot_batch(
         self,
-        batch_id=None,
-        grid_width=5,
-        grid_height=5,
-        figure_size=(14, 14),
-        imagery_kwargs={},
-        labels_kwargs={},
-    ):
+        batch_id: Optional[int] = None,
+        grid_width: int = 5,
+        grid_height: int = 5,
+        figure_size: Tuple[int, int] = (14, 14),
+        imagery_kwargs: Optional[Any] = None,
+        labels_kwargs: Optional[Any] = None,
+    ) -> None:
         """Plot imagery and labels of a set of patches from the next batch."""
+
+        if imagery_kwargs is None:
+            imagery_kwargs = {}
+
+        if labels_kwargs is None:
+            labels_kwargs = {}
 
         if batch_id is not None:
             X_batch, Y_batch = self[batch_id]
@@ -238,11 +251,11 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
         plt.show()
 
-    def load_batch(self):
+    def load_batch(self) -> BatchType:
         """Load and preprocess a batch of patches."""
 
-        Y = np.empty((self.batch_size, *self.output_shape, 1), dtype=np.uint8)
-        X = np.empty((self.batch_size, *self.output_shape, len(self.bands)))
+        Y = np.empty([self.batch_size, *self.output_shape, 1], dtype=np.uint8)
+        X = np.empty([self.batch_size, *self.output_shape, len(self.bands)])
 
         for index, patch_id in enumerate(self.current_batch):
 
@@ -313,7 +326,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
         return X, Y
 
-    def get_patch_meta(self, patch_id):
+    def get_patch_meta(self, patch_id: int) -> Dict[str, Any]:
         """Locate patch in the dataset."""
 
         tile_id = patch_id // self.grid_size
@@ -341,24 +354,23 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
     def plot_grid(
         self,
-        patch_id=None,
-        tile_id=None,
-        show_labels=True,
-        patch_id_color="white",
-        patch_id_size="x-large",
-        grid_color="white",
-        linewidth=3,
-        figsize=(10, 10),
-        imagery_kwargs={},
-        labels_kwargs={},
-    ):
+        tile_id: int,
+        show_labels: bool = True,
+        patch_id_color: str = "white",
+        patch_id_size: str = "x-large",
+        grid_color: str = "white",
+        linewidth: int = 3,
+        figsize: Tuple[int, int] = (10, 10),
+        imagery_kwargs: Optional[Any] = None,
+        labels_kwargs: Optional[Any] = None,
+    ) -> None:
         """Plot tile and its grid of patches."""
 
-        if patch_id is not None:
-            tile_id = self.get_patch_meta(patch_id)["tile"]
+        if imagery_kwargs is None:
+            imagery_kwargs = {}
 
-        if patch_id is None and tile_id is None:
-            raise ValueError("Either patch_id or tile_id must be provided.")
+        if labels_kwargs is None:
+            labels_kwargs = {}
 
         sorted_patch_ids = np.arange(len(self.patch_ids))
         tile_patch_ids = sorted_patch_ids[
@@ -413,3 +425,21 @@ class PatchFlowGenerator(keras.utils.Sequence):
                     ha="center",
                     va="center",
                 )
+
+
+from pathlib import Path
+from paths import generate_paired_paths
+
+data_directory = Path("/home/robert/robert/roofs_dataset/train")
+
+paired_paths = generate_paired_paths(
+    directory=data_directory,
+    imagery_folder_name="image",
+    labels_folder_name="label",
+)
+
+generator = PatchFlowGenerator(
+    paired_paths=paired_paths,
+    tile_shape=(10000, 10000),
+    patch_shape=(1000, 1000),
+)
