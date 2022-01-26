@@ -220,8 +220,8 @@ class PatchFlowGenerator(keras.utils.Sequence):
         grid_width: int = 5,
         grid_height: int = 5,
         figure_size: Tuple[int, int] = (14, 14),
-        imagery_kwargs: Optional[Any] = None,
-        labels_kwargs: Optional[Any] = None,
+        imagery_kwargs: Any = None,
+        labels_kwargs: Any = None,
     ) -> None:
         """Plot imagery and labels of a set of patches from the next batch."""
 
@@ -361,8 +361,8 @@ class PatchFlowGenerator(keras.utils.Sequence):
         grid_color: str = "white",
         linewidth: int = 3,
         figsize: Tuple[int, int] = (10, 10),
-        imagery_kwargs: Optional[Any] = None,
-        labels_kwargs: Optional[Any] = None,
+        imagery_kwargs: Any = None,
+        labels_kwargs: Any = None,
     ) -> None:
         """Plot tile and its grid of patches."""
 
