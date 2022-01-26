@@ -274,7 +274,7 @@ def plot_proportions(
     Args:
         labels: Categorical raster to plot. If string or Path object,
             it will be interpreted as a path and open using rasterio.
-        cmap: Matplotlib color map. If not provided, a default map
+        cmap: Matplotlib color map. If not provided, a default cmap
             will be used.
         window: A rasterio window to plot only a subset of the raster.
             Ignored if the raster comes as array.

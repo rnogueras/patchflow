@@ -34,55 +34,60 @@ class PatchFlowGenerator(keras.utils.Sequence):
         shuffle: bool = True,
         random_seed: Optional[int] = None,
     ):
-        """Initialize PatchFlowGenerator. The class can be instanciated 
+        """Initialize PatchFlowGenerator. The class can be instanciated
         in two different ways:
-        
-            - Providing a paired paths dataframe outputted by
-                the `generate_paired_paths` function along with arbitrary 
-                tile_shape and patch_shape arguments. This way, the 
-                patch ids are automatically generated from the specified 
-                tile shape and the desired patch shapes during the 
-                initialization. 
-                
+
+            - Providing a paired paths dataframe outputted by the
+                `generate_paired_paths` function along with arbitrary
+                tile_shape and patch_shape arguments. This way, the
+                patch ids are automatically generated from the specified
+                tile shape and the desired patch shapes during the
+                initialization.
+
             - Passing one of the dictionaries outputted by the
                 `generate_patch_ids` function using the ** operator.
-    
-        The patch grids generated over the tiles can be checked using the 
+
+        The patch grids generated over the tiles can be checked using the
         `plot_grid` method.
 
         Args:
             paired_paths: A dataframe containing the imagery and labels
-                paired paths of each tile as outputted by the 
+                paired paths of each tile as outputted by the
                 `generate_paired_paths` function.
-            tile_shape: Tile shape in pixels. E.g.: (5000, 5000).
+            tile_shape: Tile shape in pixels. E.g.: (5000, 5000). The
+                generator assumes that all tiles have the same shape.
+                The patch grid will be built from the top left corner.
+                The area outside the provided tile shape will not be
+                processed by the generator.
             patch_shape: Patch shape in pixels. E.g.: (128, 128).
             patch_ids: A sequence containing the patch ids that will
-                be used to calculate the patch windows over the imagery. 
+                be used to calculate the patch windows over the imagery.
                 Defaults to None.
-            batch_size: Number of patches generated per batch. Defaults 
+            batch_size: Number of patches generated per batch. Defaults
                 to 32.
-            bands: Imagery bands to read during the data generation. 
+            bands: Imagery bands to read during the data generation.
                 Defaults to [1, 2, 3].
             filler_label: Pixel label for the filler class. This value
                 will be used to label any empty area found during the
                 data generation. E.g.: incomplete tiles. Defaults to 0.
-            padding_method: Numpy padding method. Defaults to "symmetric". 
+            padding_method: Numpy padding mode. Defaults to "symmetric".
                 See full list at:
                 https://numpy.org/doc/stable/reference/generated/numpy.pad.html
             output_shape: Shape of the output images. If the output
                 shape is different from the patch shape, the images
-                will be resized during the data generation. Defaults 
+                will be resized during the data generation. Defaults
                 to None.
-            resizing_method: Method used to resize the images when the 
-                patch size and output size are different. Defaults to 
-                "constant".
+            resizing_method: Name of the mode to be used for resizing
+                the images when the patch size and output size are
+                different. Defaults to "constant". See full list at:
+                https://scikit-image.org/docs/dev/api/skimage.transform.html
             rescaling_factor: Real number used to rescale the pixel
                 values. E.g.: 1 / 255. Defaults to None.
             shuffle: Whether to shuffle the patch ids at the end of each
                 epoch. Defaults to True.
-            random_seed: Pass an integer for reproducible output. Defaults 
+            random_seed: Pass an integer for reproducible output. Defaults
                 to None.
-        """        
+        """
 
         # Paths
         self.paired_paths = paired_paths
@@ -185,7 +190,9 @@ class PatchFlowGenerator(keras.utils.Sequence):
         """Estimate class proportions from a random sample of batches."""
 
         proportion_array = np.zeros(number_of_classes, dtype=float)
-        progress_bar = keras.utils.Progbar(number_of_batches, unit_name="batch")
+        progress_bar = keras.utils.Progbar(
+            number_of_batches, unit_name="batch"
+        )
 
         for index in range(number_of_batches):
 
@@ -394,7 +401,9 @@ class PatchFlowGenerator(keras.utils.Sequence):
         for row in range(self.grid_shape[1]):
             y_coord = row * self.patch_shape[1] + self.patch_shape[1] / 2
             for column in range(self.grid_shape[0]):
-                x_coord = column * self.patch_shape[0] + self.patch_shape[0] / 2
+                x_coord = (
+                    column * self.patch_shape[0] + self.patch_shape[0] / 2
+                )
                 patch_position = column + row * self.grid_shape[0]
                 ax.text(
                     x_coord,
