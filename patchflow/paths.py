@@ -1,3 +1,4 @@
+#%%
 """Functions for accessing the data."""
 
 import os
@@ -7,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 
-def generate_tile_paths(
+def generate_paired_paths(
     directory: str, imagery_folder_name="imagery", labels_folder_name="labels"
 ):
     """Generate imagery / labels paired data paths to retrieve
@@ -60,9 +61,7 @@ def generate_tile_paths(
     )
 
 
-# TODO: add random seed
-# TODO: add documentation
-def generate_patch_indexes(
+def generate_patch_ids(
     paired_paths,
     tile_shape,
     patch_shape,
@@ -70,6 +69,7 @@ def generate_patch_indexes(
     test_size=0.1,
     shuffle=True,
     verbose=True,
+    random_seed=None,
 ):
     """Calculate and generate a set of indexes based on the tile
     and patch sizes.
@@ -107,52 +107,52 @@ def generate_patch_indexes(
     verbose : bool, optional
         Whether to print the size in patches of each subset. True
         by default.
+    random_seed : int
+        Random seed to shuffle the generated ids.
 
     Returns
     -------
-    tuple of dictionaries
+    List of dictionaries
         Three dictionaries each of which contains the paired_paths,
         tile_shape, patche_shape and patch_indexes of a different
         subset, so that it can be easily passed to a different
         instance of the PatchFlowGenerator using the ** operator.
     """
 
-    tile_size_in_patches = np.prod(
-        np.array(tile_shape) // np.array(patch_shape)
-    )
-
-    patch_indexes = np.arange(len(paired_paths) * tile_size_in_patches)
+    grid_size = np.prod(np.array(tile_shape) // np.array(patch_shape))
+    patch_ids = np.arange(len(paired_paths) * grid_size)
 
     if shuffle:
-        np.random.shuffle(patch_indexes)
+        if random_seed is not None:
+            rng = np.random.default_rng(random_seed)
+            rng.shuffle(patch_ids)
+        else:
+            np.random.shuffle(patch_ids)
 
-    test_length = int(len(patch_indexes) * test_size)
-    validation_length = int(len(patch_indexes) * validation_size)
+    test_length = int(len(patch_ids) * test_size)
+    validation_length = int(len(patch_ids) * validation_size)
 
-    # Extract test and validation indexes and leave the rest for training
-    test_indexes = patch_indexes[0:test_length]
-    validation_indexes = patch_indexes[
-        test_length : test_length + validation_length
-    ]
-    training_indexes = patch_indexes[test_length + validation_length :]
+    # Extract test and validation indexes
+    # and leave the rest for training
+    test_ids = patch_ids[0:test_length]
+    validation_ids = patch_ids[test_length : test_length + validation_length]
+    training_ids = patch_ids[test_length + validation_length :]
 
     if verbose:
-        print(f"{len(training_indexes)} patches have been set up for training.")
-        print(
-            f"{len(validation_indexes)} patches have been set up for validating."
-        )
-        print(f"{len(test_indexes)} patches have been set up for testing.")
+        print(f"{len(training_ids)} patches have been set up for training.")
+        print(f"{len(validation_ids)} patches have been set up for validating.")
+        print(f"{len(test_ids)} patches have been set up for testing.")
 
     return [
         {
             "paired_paths": paired_paths,
             "tile_shape": tile_shape,
             "patch_shape": patch_shape,
-            "patch_indexes": index_subset,
+            "patch_ids": id_subset,
         }
-        for index_subset in [
-            training_indexes,
-            validation_indexes,
-            test_indexes,
+        for id_subset in [
+            training_ids,
+            validation_ids,
+            test_ids,
         ]
     ]
