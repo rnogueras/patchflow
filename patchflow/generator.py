@@ -1,5 +1,5 @@
 """PatchFlow class."""
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Tuple
 import math
 
 import numpy as np
@@ -23,9 +23,9 @@ class PatchFlowGenerator(keras.utils.Sequence):
         paired_paths: pd.DataFrame,
         tile_shape: Sequence[int],
         patch_shape: Sequence[int],
-        patch_ids: Optional[Sequence[int]] = None,
+        patch_ids: Optional[np.ndarray] = None,
         batch_size: int = 32,
-        bands: Sequence[int] = [1, 2, 3],
+        bands: Sequence[int] = (1, 2, 3),
         filler_label: int = 0,
         padding_method: str = "symmetric",
         output_shape: Optional[Sequence[int]] = None,
@@ -97,7 +97,9 @@ class PatchFlowGenerator(keras.utils.Sequence):
         self.tile_shape = tile_shape
         self.grid_shape = self.init_grid_shape()
         self.grid_size = np.prod(self.grid_shape)
-        self.patch_ids = self.init_patch_ids(patch_ids)
+        self.patch_ids = patch_ids
+        if self.patch_ids is None:
+            self.patch_ids = self.init_patch_ids()
 
         # Process config
         self.batch_size = batch_size
@@ -117,20 +119,17 @@ class PatchFlowGenerator(keras.utils.Sequence):
         if self.shuffle:
             self.shuffle_generator()
 
-    def init_patch_ids(self, patch_ids):
-        """Initialize patch ids."""
-        if patch_ids is None:
-            patch_ids = np.arange(len(self.paired_paths) * self.grid_size)
-            print(
-                f"{len(patch_ids)} patches have been set up in this generator."
-            )
+    def init_patch_ids(self) -> np.ndarray:
+        """Generate patch id array."""
+        patch_ids = np.arange(len(self.paired_paths) * self.grid_size)
+        print(f"{len(patch_ids)} patches have been set up in this generator.")  
         return patch_ids
 
     # TODO: Add greedy mode
-    def init_grid_shape(self):
-        """Initialize grid shape."""
+    def init_grid_shape(self) -> Tuple[int]:
+        """Calculate grid shape."""
         grid_shape = np.array(self.tile_shape) // np.array(self.patch_shape)
-        return grid_shape.tolist()
+        return tuple(grid_shape)
 
     def init_rng(self, random_seed):
         """Initialize random number generator."""
