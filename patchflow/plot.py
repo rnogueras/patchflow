@@ -1,5 +1,5 @@
 """Functions for plotting imagery and labels."""
-from typing import Optional, Union, Sequence, Any, Type
+from typing import Optional, Sequence, Any, Type
 from pathlib import Path
 import warnings
 
@@ -9,13 +9,11 @@ from matplotlib import pyplot as plt
 import rasterio
 import rasterio.plot
 
-from raster import get_raster_proportions
+from raster import RasterType, WindowType, get_raster_proportions
 
 # TODO: Catch the warning isolatedly
 warnings.filterwarnings("ignore")
 
-RasterType = Union[np.ndarray, str, Path]
-WindowType = Type[rasterio.windows.Window]
 ColorMapType = Type[matplotlib.colors.ListedColormap]
 
 COLOR_CODES = dict(
