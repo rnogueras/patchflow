@@ -33,7 +33,7 @@ STANDARD_CMAP = matplotlib.colors.ListedColormap(list(COLOR_CODES.values()))
 def plot_imagery(
     imagery: RasterType,
     window: Optional[WindowType] = None,
-    bands: Optional[Sequence[int]] = None,
+    bands: Sequence[int] = (1, 2, 3),
     raster_shape: bool = True,
     show_axis: bool = False,
     ax: Optional[plt.Axes] = None,
@@ -62,9 +62,6 @@ def plot_imagery(
     Returns:
         Axes with plot.
     """
-
-    if bands is None:
-        bands = [1, 2, 3]
 
     if isinstance(imagery, (str, Path)):
         with rasterio.open(imagery) as src:
@@ -184,7 +181,7 @@ def plot_labels(
 def plot_histogram(
     imagery: RasterType,
     window: Optional[WindowType] = None,
-    bands: Optional[Sequence[int]] = None,
+    bands: Sequence[int] = (1, 2, 3),
     show_axis: bool = True,
     ax: Optional[plt.Axes] = None,
     **kwargs: Any,
@@ -213,9 +210,6 @@ def plot_histogram(
     Returns:
         Axes with plot.
     """
-
-    if bands is None:
-        bands = [1, 2, 3]
 
     if "histtype" not in kwargs:
         kwargs["histtype"] = "step"
@@ -325,7 +319,7 @@ def describe(
     imagery: RasterType,
     labels: RasterType,
     window: Optional[WindowType] = None,
-    bands: Optional[Sequence[int]] = None,
+    bands: Sequence[int] = (1, 2, 3),
     figure_size: Sequence[int] = (10, 8),
 ) -> None:
     """Describe labelled raster plotting imagery, labels, histogram
@@ -348,9 +342,6 @@ def describe(
     Returns:
         None
     """
-
-    if bands is None:
-        bands = [1, 2, 3]
 
     if isinstance(imagery, (str, Path)):
         with rasterio.open(imagery) as src:
