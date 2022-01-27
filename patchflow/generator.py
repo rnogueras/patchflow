@@ -1,5 +1,5 @@
 """PatchFlow class."""
-from typing import Optional, Sequence, Tuple, Generator, Dict, Any
+from typing import Optional, Union, Sequence, Tuple, Generator, Dict, Any
 import math
 
 import numpy as np
@@ -33,7 +33,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
         padding_method: str = "symmetric",
         output_shape: Optional[Sequence[int]] = None,
         resizing_method: str = "constant",
-        rescaling_factor: Optional[float] = None,
+        rescaling_factor: Optional[Union[str, float]] = "automatic",
         shuffle: bool = True,
         random_seed: Optional[int] = None,
     ):
@@ -238,6 +238,9 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
         if "legend" not in labels_kwargs:
             labels_kwargs["legend"] = False
+        
+        if "ignore" not in labels_kwargs:
+            labels_kwargs["transparent"] = [0]
 
         plt.figure(figsize=figure_size)
 
@@ -263,8 +266,11 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
             with rasterio.open(patch_meta["labels_path"]) as src:
                 labels = src.read([1], window=patch_meta["window"])
+                
             with rasterio.open(patch_meta["imagery_path"]) as src:
                 imagery = src.read(self.bands, window=patch_meta["window"])
+                if self.rescaling_factor == "automatic":
+                    dtype_rescaling_factor = 1 / np.iinfo(src.meta["dtype"]).max
 
             labels_shape = labels.squeeze().shape
             imagery_shape = imagery[0, :, :].shape
@@ -302,8 +308,10 @@ class PatchFlowGenerator(keras.utils.Sequence):
                     shape=(len(self.bands), *self.patch_shape), dtype=np.uint8
                 )
 
-            if self.rescaling_factor is not None:
+            if isinstance(self.rescaling_factor, float):
                 imagery = imagery * self.rescaling_factor
+            elif self.rescaling_factor == "automatic":
+                imagery = imagery * dtype_rescaling_factor
 
             labels = rasterio.plot.reshape_as_image(labels)
             imagery = rasterio.plot.reshape_as_image(imagery)
@@ -372,6 +380,12 @@ class PatchFlowGenerator(keras.utils.Sequence):
         if labels_kwargs is None:
             labels_kwargs = {}
 
+        if "show_axis" not in imagery_kwargs:
+            imagery_kwargs["show_axis"] = True
+
+        if "show_axis" not in labels_kwargs:
+            labels_kwargs["show_axis"] = True
+
         sorted_patch_ids = np.arange(len(self.patch_ids))
         tile_patch_ids = sorted_patch_ids[
             tile_id * self.grid_size : (tile_id + 1) * self.grid_size
@@ -395,12 +409,6 @@ class PatchFlowGenerator(keras.utils.Sequence):
             color=grid_color,
             linewidth=linewidth,
         )
-
-        if "show_axis" not in imagery_kwargs:
-            imagery_kwargs["show_axis"] = True
-
-        if "show_axis" not in labels_kwargs:
-            labels_kwargs["show_axis"] = True
 
         # Plot imagery and labels
         paths = self.paired_paths.iloc[tile_id]
