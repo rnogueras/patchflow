@@ -118,7 +118,10 @@ class PatchFlowGenerator(keras.utils.Sequence):
         # Iteration
         self.iterator = 0
         self.shuffle = shuffle
-        self.rng = self.init_rng(random_seed)
+        self.rng = None
+        if random_seed is not None:
+            self.rng = np.random.default_rng(random_seed)
+        self.current_batch = None
         if self.shuffle:
             self.shuffle_generator()
 
@@ -133,14 +136,6 @@ class PatchFlowGenerator(keras.utils.Sequence):
         """Calculate grid shape."""
         grid_shape = np.array(self.tile_shape) // np.array(self.patch_shape)
         return tuple(grid_shape)
-
-    def init_rng(
-        self, random_seed: Optional[int]
-    ) -> Optional[np.random.Generator]:
-        """Initialize random number generator."""
-        if random_seed is None:
-            return None
-        return np.random.default_rng(random_seed)
 
     def __len__(self) -> int:
         """Return number of batches in the sequence."""
@@ -175,9 +170,11 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
     def shuffle_generator(self) -> None:
         """Shuffle patch ids."""
+
         if self.rng is not None:
             self.rng.shuffle(self.patch_ids)
             return
+
         np.random.shuffle(self.patch_ids)
 
     def unshuffle_generator(self) -> None:
@@ -231,16 +228,16 @@ class PatchFlowGenerator(keras.utils.Sequence):
         if labels_kwargs is None:
             labels_kwargs = {}
 
+        if "legend" not in labels_kwargs:
+            labels_kwargs["legend"] = False
+
+        if "ignore" not in labels_kwargs:
+            labels_kwargs["transparent"] = [0]
+
         if batch_id is not None:
             X_batch, Y_batch = self[batch_id]
         else:
             X_batch, Y_batch = next(self)
-
-        if "legend" not in labels_kwargs:
-            labels_kwargs["legend"] = False
-        
-        if "ignore" not in labels_kwargs:
-            labels_kwargs["transparent"] = [0]
 
         plt.figure(figsize=figure_size)
 
@@ -266,11 +263,13 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
             with rasterio.open(patch_meta["labels_path"]) as src:
                 labels = src.read([1], window=patch_meta["window"])
-                
+
             with rasterio.open(patch_meta["imagery_path"]) as src:
                 imagery = src.read(self.bands, window=patch_meta["window"])
                 if self.rescaling_factor == "automatic":
-                    dtype_rescaling_factor = 1 / np.iinfo(src.meta["dtype"]).max
+                    dtype_rescaling_factor = (
+                        1 / np.iinfo(src.meta["dtype"]).max
+                    )
 
             labels_shape = labels.squeeze().shape
             imagery_shape = imagery[0, :, :].shape
