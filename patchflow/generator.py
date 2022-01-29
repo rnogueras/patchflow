@@ -164,7 +164,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
             batch_index * self.batch_size : (batch_index + 1) * self.batch_size
         ]
 
-        return self._load_batch()
+        return self.load_current_batch()
 
     def reset_generator(self) -> None:
         """Reset generator iterator."""
@@ -222,6 +222,140 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
         return proportion_array / np.sum(proportion_array)
 
+    def get_patch_meta(self, patch_id: int) -> Dict[str, Any]:
+        """Get the meta data to locate patch in the dataset.
+
+        Args:
+            patch_id: The number that identifies the patch.
+
+        Returns:
+            Dictionary containing the metadata of the patch:
+            patch_id, tile, column, row, window, imagery path and
+            labels path.
+        """        
+
+        tile_id = patch_id // self.grid_size
+        column_id = patch_id % self.grid_shape[0]
+        row_id = patch_id // self.grid_shape[0] % self.grid_shape[1]
+
+        window = rasterio.windows.Window(
+            column_id * self.patch_shape[0],
+            row_id * self.patch_shape[1],
+            self.patch_shape[0],
+            self.patch_shape[1],
+        )
+
+        paths = self.paired_paths.iloc[tile_id]
+
+        return {
+            "patch_id": patch_id,
+            "tile": tile_id,
+            "column": column_id,
+            "row": row_id,
+            "window": window,
+            "imagery_path": paths["imagery_path"],
+            "labels_path": paths["labels_path"],
+        }
+
+    def load_current_batch(self) -> BatchType:
+        """Load and preprocess the current batch."""
+
+        Y = np.empty([self.batch_size, *self.output_shape, 1], dtype=np.uint8)
+        X = np.empty([self.batch_size, *self.output_shape, len(self.bands)])
+
+        for index, patch_id in enumerate(self.current_batch):
+            labels, imagery = self.load_patch(patch_id)
+            Y[index] = labels
+            X[index] = imagery
+
+        return X, Y
+
+    def load_patch(self, patch_id: int) -> Tuple[np.ndarray, np.ndarray]:
+        """Load and preprocess the specified patch
+
+        Args:
+            patch_id: Identification number of the patch to load.
+
+        Returns:
+            Preprocessed labels and imagery rasters.
+        """        
+        
+        patch_meta = self.get_patch_meta(patch_id)
+        
+        # Load
+        with rasterio.open(patch_meta["labels_path"]) as src:
+            labels = src.read([1], window=patch_meta["window"])
+                
+        with rasterio.open(patch_meta["imagery_path"]) as src:
+            imagery = src.read(self.bands, window=patch_meta["window"])
+            if self.rescaling_factor == "automatic":
+                dtype_rescaling_factor = (
+                        1 / np.iinfo(src.meta["dtype"]).max
+                    )
+
+        labels_shape = labels.squeeze().shape
+        imagery_shape = imagery[0, :, :].shape
+
+        # Pad
+        if labels_shape == imagery_shape != self.patch_shape:
+            if labels_shape[0] and labels_shape[1]:
+                labels = pad(
+                        raster=labels,
+                        out_shape=(*self.patch_shape,),
+                        method=self.padding_method,
+                    )
+                imagery = pad(
+                        raster=imagery,
+                        out_shape=(*self.patch_shape,),
+                        method=self.padding_method,
+                    )
+            else:
+                labels = np.full(
+                        shape=(1, *self.patch_shape),
+                        fill_value=self.filler_label,
+                        dtype=np.uint8,
+                    )
+                imagery = np.zeros(
+                        shape=(len(self.bands), *self.patch_shape),
+                        dtype=np.uint8,
+                    )
+
+        elif labels_shape != imagery_shape != self.patch_shape:
+            labels = np.full(
+                    shape=(1, *self.patch_shape),
+                    fill_value=self.filler_label,
+                    dtype=np.uint8,
+                )
+            imagery = np.zeros(
+                    shape=(len(self.bands), *self.patch_shape), dtype=np.uint8
+                )
+
+        # Reshape as image
+        labels = rasterio.plot.reshape_as_image(labels)
+        imagery = rasterio.plot.reshape_as_image(imagery)
+
+        # Resize
+        if labels.squeeze().shape != self.output_shape != None:
+            labels = skimage.transform.resize(
+                    image=labels,
+                    output_shape=(*self.output_shape, 1),
+                    mode=self.resizing_method,
+                    preserve_range=True,
+                )
+            imagery = skimage.transform.resize(
+                    image=imagery,
+                    output_shape=(*self.output_shape, len(self.bands)),
+                    mode=self.resizing_method,
+                )
+            
+        # Rescale
+        if isinstance(self.rescaling_factor, float):
+            imagery = imagery * self.rescaling_factor
+        elif self.rescaling_factor == "automatic":
+            imagery = imagery * dtype_rescaling_factor
+        
+        return labels, imagery
+
     def plot_batch(
         self,
         batch_index: Optional[int] = None,
@@ -273,125 +407,6 @@ class PatchFlowGenerator(keras.utils.Sequence):
             plot_labels(Y_batch[index], ax=ax, **labels_kwargs)
 
         plt.show()
-
-    def _load_batch(self) -> BatchType:
-        """Load and preprocess a batch of patches."""
-
-        Y = np.empty([self.batch_size, *self.output_shape, 1], dtype=np.uint8)
-        X = np.empty([self.batch_size, *self.output_shape, len(self.bands)])
-
-        for index, patch_id in enumerate(self.current_batch):
-
-            patch_meta = self.get_patch_meta(patch_id)
-
-            # TODO: Put all this processing into a separate method
-            # so that it can be called to inspect specific patch_ids.
-            with rasterio.open(patch_meta["labels_path"]) as src:
-                labels = src.read([1], window=patch_meta["window"])
-                
-            with rasterio.open(patch_meta["imagery_path"]) as src:
-                imagery = src.read(self.bands, window=patch_meta["window"])
-                if self.rescaling_factor == "automatic":
-                    dtype_rescaling_factor = (
-                        1 / np.iinfo(src.meta["dtype"]).max
-                    )
-
-            labels_shape = labels.squeeze().shape
-            imagery_shape = imagery[0, :, :].shape
-
-            if labels_shape == imagery_shape != self.patch_shape:
-                if labels_shape[0] and labels_shape[1]:
-                    labels = pad(
-                        raster=labels,
-                        out_shape=(*self.patch_shape,),
-                        method=self.padding_method,
-                    )
-                    imagery = pad(
-                        raster=imagery,
-                        out_shape=(*self.patch_shape,),
-                        method=self.padding_method,
-                    )
-                else:
-                    labels = np.full(
-                        shape=(1, *self.patch_shape),
-                        fill_value=self.filler_label,
-                        dtype=np.uint8,
-                    )
-                    imagery = np.zeros(
-                        shape=(len(self.bands), *self.patch_shape),
-                        dtype=np.uint8,
-                    )
-
-            elif labels_shape != imagery_shape != self.patch_shape:
-                labels = np.full(
-                    shape=(1, *self.patch_shape),
-                    fill_value=self.filler_label,
-                    dtype=np.uint8,
-                )
-                imagery = np.zeros(
-                    shape=(len(self.bands), *self.patch_shape), dtype=np.uint8
-                )
-
-            if isinstance(self.rescaling_factor, float):
-                imagery = imagery * self.rescaling_factor
-            elif self.rescaling_factor == "automatic":
-                imagery = imagery * dtype_rescaling_factor
-
-            labels = rasterio.plot.reshape_as_image(labels)
-            imagery = rasterio.plot.reshape_as_image(imagery)
-
-            if labels.squeeze().shape != self.output_shape != None:
-                labels = skimage.transform.resize(
-                    image=labels,
-                    output_shape=(*self.output_shape, 1),
-                    mode=self.resizing_method,
-                    preserve_range=True,
-                )
-                imagery = skimage.transform.resize(
-                    image=imagery,
-                    output_shape=(*self.output_shape, len(self.bands)),
-                    mode=self.resizing_method,
-                )
-
-            Y[index] = labels
-            X[index] = imagery
-
-        return X, Y
-
-    def get_patch_meta(self, patch_id: int) -> Dict[str, Any]:
-        """Get the meta data to locate patch in the dataset.
-
-        Args:
-            patch_id: The number that identifies the patch.
-
-        Returns:
-            Dictionary containing the metadata of the patch:
-            patch_id, tile, column, row, window, imagery path and
-            labels path.
-        """        
-
-        tile_id = patch_id // self.grid_size
-        column_id = patch_id % self.grid_shape[0]
-        row_id = patch_id // self.grid_shape[0] % self.grid_shape[1]
-
-        window = rasterio.windows.Window(
-            column_id * self.patch_shape[0],
-            row_id * self.patch_shape[1],
-            self.patch_shape[0],
-            self.patch_shape[1],
-        )
-
-        paths = self.paired_paths.iloc[tile_id]
-
-        return {
-            "patch_id": patch_id,
-            "tile": tile_id,
-            "column": column_id,
-            "row": row_id,
-            "window": window,
-            "imagery_path": paths["imagery_path"],
-            "labels_path": paths["labels_path"],
-        }
 
     def plot_grid(
         self,

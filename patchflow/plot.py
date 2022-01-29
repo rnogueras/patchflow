@@ -127,6 +127,8 @@ def plot_labels(
 
     if "alpha" not in kwargs:
         kwargs["alpha"] = 0.7
+        
+    # TODO: Add transparent default
 
     if isinstance(labels, (str, Path)):
         with rasterio.open(labels) as src:
