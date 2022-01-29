@@ -221,7 +221,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
         return proportion_array / np.sum(proportion_array)
 
     def get_patch_meta(self, patch_id: int) -> Dict[str, Any]:
-        """Get the meta data to locate patch in the dataset.
+        """Get metadata to locate the patch in the dataset.
 
         Args:
             patch_id: The number that identifies the patch.
