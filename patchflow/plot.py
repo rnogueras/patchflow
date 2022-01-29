@@ -9,7 +9,7 @@ from matplotlib import pyplot as plt
 import rasterio
 import rasterio.plot
 
-from raster import RasterSourceType, WindowType, get_raster_proportions
+from patchflow.raster import RasterSourceType, WindowType, get_raster_proportions
 
 # TODO: Catch the warning isolatedly
 warnings.filterwarnings("ignore")
