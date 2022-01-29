@@ -69,9 +69,7 @@ def show_imagery(
         with rasterio.open(imagery) as src:
             imagery = src.read(bands, window=window)
 
-    show = False
     if not ax:
-        show = True
         ax = plt.gca()
 
     if raster_shape:
@@ -82,16 +80,13 @@ def show_imagery(
     if not show_axis:
         ax.axis("off")
 
-    if show:
-        plt.show()
-
     return ax
 
 
 def show_labels(
     labels: RasterSourceType,
     window: Optional[WindowType] = None,
-    transparent: Optional[Sequence[int]] = None,
+    transparent: Sequence[int] = (0, ),
     legend: bool = True,
     label_names: Optional[Sequence[str]] = None,
     show_axis: bool = False,
@@ -107,7 +102,7 @@ def show_labels(
         window: A rasterio window to plot only a subset of the raster. Ignored
             if the raster comes as array.
         transparent: List of label values to make transparent. The alpha
-            of this values will be set to 0.
+            of this values will be set to 0. By default, hide label 0.
         legend: If true, a legend showing the color of each label will be
             displayed.
         label_names: List of names of the labels to be displayed in the legend.
@@ -143,15 +138,13 @@ def show_labels(
     label_values = np.unique(labels)
     cmap_index = label_values / (len(label_values) - 1)
 
-    if transparent is not None:
-        # set alpha of values in disabled list to 0
+    if len(transparent):
+        # set alpha of values in transparent list to 0
         cmap_array = kwargs["cmap"](cmap_index)
         cmap_array[np.isin(label_values, transparent), -1] = 0
         kwargs["cmap"] = matplotlib.colors.ListedColormap(cmap_array)
 
-    show = False
     if not ax:
-        show = True
         ax = plt.gca()
 
     ax.imshow(labels, **kwargs)
@@ -175,9 +168,6 @@ def show_labels(
 
     if not show_axis:
         ax.axis("off")
-
-    if show:
-        plt.show()
 
     return ax
 
@@ -235,12 +225,10 @@ def show_histogram(
         with rasterio.open(imagery) as src:
             imagery = src.read(bands, window=window)
 
-    # TODO: Handle nodata here, convert to nans and then ignore them
+    # TODO: Handle nodata here, convert it to nans
     value_range = np.nanmin(imagery), np.nanmax(imagery)
 
-    show = False
     if not ax:
-        show = True
         ax = plt.gca()
 
     ax.hist(
@@ -251,9 +239,6 @@ def show_histogram(
 
     if not show_axis:
         ax.axis("off")
-
-    if show:
-        plt.show()
 
     return ax
 
@@ -298,9 +283,7 @@ def show_proportions(
     rescale = lambda x: (x - np.min(x)) / (np.max(x) - np.min(x))
     cmap = cmap.reversed()
 
-    show = False
     if not ax:
-        show = True
         ax = plt.gca()
 
     ax.bar(
@@ -312,9 +295,6 @@ def show_proportions(
 
     if not show_axis:
         ax.axis("off")
-
-    if show:
-        plt.show()
 
     return ax
 
@@ -361,7 +341,7 @@ def describe(
     show_imagery(imagery=imagery, bands=bands, ax=ax_1)
 
     ax_2 = plt.subplot2grid((4, 4), (0, 2), colspan=2, rowspan=3)
-    show_labels(labels=labels, ax=ax_2, alpha=1, legend=False)
+    show_labels(labels=labels, ax=ax_2, alpha=1, legend=False, transparent=[])
 
     ax_3 = plt.subplot2grid((4, 4), (3, 0), colspan=2)
     show_histogram(imagery=imagery, ax=ax_3)
