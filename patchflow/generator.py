@@ -1,4 +1,5 @@
 """PatchFlow class."""
+#%%
 from typing import Optional, Union, Sequence, Tuple, Generator, Dict, Any
 import math
 
@@ -37,8 +38,9 @@ class PatchFlowGenerator(keras.utils.Sequence):
         shuffle: bool = True,
         random_seed: Optional[int] = None,
     ):
-        """Initialize PatchFlowGenerator. The class can be instanciated
-        in two different ways:
+        """Initialize PatchFlowGenerator. 
+        
+        The class can be instanciated in two different ways:
 
             - Providing a paired paths dataframe outputted by the
                 `generate_paired_paths` function along with arbitrary
@@ -138,22 +140,22 @@ class PatchFlowGenerator(keras.utils.Sequence):
         return tuple(grid_shape)
 
     def __len__(self) -> int:
-        """Return number of batches in the sequence."""
+        """Return number of batches in the generator."""
         return math.ceil(len(self.patch_ids) / self.batch_size)
 
     def __iter__(self) -> Generator[BatchType, None, None]:
-        """Iterate over the Sequence."""
+        """Iterate over the generator."""
         for index in range(len(self)):
             yield self[index]
 
     def __next__(self) -> BatchType:
-        """Enable getting batches using next()."""
+        """Return batch when next() is called."""
         iterator = self.iterator
         self.iterator += 1
         return self[iterator]
 
     def __getitem__(self, batch_index: int) -> BatchType:
-        """Get batch of patches by indexing the Sequence."""
+        """Return batch when the generator is indexed."""
 
         if batch_index >= len(self):
             raise IndexError("Batch index out of range.")
@@ -162,7 +164,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
             batch_index * self.batch_size : (batch_index + 1) * self.batch_size
         ]
 
-        return self.load_batch()
+        return self._load_batch()
 
     def reset_generator(self) -> None:
         """Reset generator iterator."""
@@ -182,22 +184,31 @@ class PatchFlowGenerator(keras.utils.Sequence):
         np.ndarray.sort(self.patch_ids)
 
     def on_epoch_end(self) -> None:
-        """Method called at the end of every epoch."""
+        """Actions to be executed at the end of each epoch."""
         self.patch_ids = np.arange(len(self.patch_ids))
         if self.shuffle:
             self.shuffle_generator()
 
     def estimate_proportions(
-        self, number_of_batches: int = 10, number_of_classes: int = 2
+        self, batch_count: int = 10, class_count: int = 2
     ) -> np.ndarray:
-        """Estimate class proportions from a random sample of batches."""
+        """Estimate class proportions from a random sample of batches.
 
-        proportion_array = np.zeros(number_of_classes, dtype=float)
-        progress_bar = keras.utils.Progbar(
-            number_of_batches, unit_name="batch"
-        )
+        Args:
+            batch_count: Number of batches that will be used to estimate
+                the proportions. Defaults to 10.
+            class_count: Number of classes available in the data.
+                Defaults to 2.
 
-        for index in range(number_of_batches):
+        Returns:
+            Array containing the proportions of the lables from 0 
+            to class_count.
+        """
+
+        proportion_array = np.zeros(class_count, dtype=float)
+        progress_bar = keras.utils.Progbar(batch_count, unit_name="batch")
+
+        for index in range(batch_count):
 
             batch = next(self)
 
@@ -213,14 +224,24 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
     def plot_batch(
         self,
-        batch_id: Optional[int] = None,
-        grid_width: int = 5,
-        grid_height: int = 5,
+        batch_index: Optional[int] = None,
+        matrix_shape: Tuple[int, int] = (5, 5),
         figure_size: Tuple[int, int] = (14, 14),
-        imagery_kwargs: Any = None,
-        labels_kwargs: Any = None,
+        imagery_kwargs: Optional[Dict[str, Any]] = None,
+        labels_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
-        """Plot imagery and labels of a set of patches from the next batch."""
+        """Plot some patches from a batch and show them in a matrix.
+
+        Args:
+            batch_id: Index of the batch to plot. If None, the last batch 
+                used is plotted. Defaults to None.
+            matrix_shape: Shape of the plot matrix provided as (width, 
+                height). Defaults to (5, 5)
+            imagery_kwargs: These will be passed to the plot_imagery
+                function.
+            labels_kwargs: These will be passed to the plot_labels
+                function.
+        """        
 
         if imagery_kwargs is None:
             imagery_kwargs = {}
@@ -234,15 +255,17 @@ class PatchFlowGenerator(keras.utils.Sequence):
         if "ignore" not in labels_kwargs:
             labels_kwargs["transparent"] = [0]
 
-        if batch_id is not None:
-            X_batch, Y_batch = self[batch_id]
+        if batch_index is not None:
+            X_batch, Y_batch = self[batch_index]
         else:
             X_batch, Y_batch = next(self)
 
+        matrix_width, matrix_height = matrix_shape
+
         plt.figure(figsize=figure_size)
 
-        for index in range(grid_height * grid_width):
-            ax = plt.subplot(grid_height, grid_width, index + 1)
+        for index in range(matrix_height * matrix_width):
+            ax = plt.subplot(matrix_height, matrix_width, index + 1)
             ax.set_title(self.current_batch[index])
             plot_imagery(
                 X_batch[index], raster_shape=False, ax=ax, **imagery_kwargs
@@ -251,7 +274,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
         plt.show()
 
-    def load_batch(self) -> BatchType:
+    def _load_batch(self) -> BatchType:
         """Load and preprocess a batch of patches."""
 
         Y = np.empty([self.batch_size, *self.output_shape, 1], dtype=np.uint8)
@@ -261,9 +284,11 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
             patch_meta = self.get_patch_meta(patch_id)
 
+            # TODO: Put all this processing into a separate method
+            # so that it can be called to inspect specific patch_ids.
             with rasterio.open(patch_meta["labels_path"]) as src:
                 labels = src.read([1], window=patch_meta["window"])
-
+                
             with rasterio.open(patch_meta["imagery_path"]) as src:
                 imagery = src.read(self.bands, window=patch_meta["window"])
                 if self.rescaling_factor == "automatic":
@@ -334,7 +359,16 @@ class PatchFlowGenerator(keras.utils.Sequence):
         return X, Y
 
     def get_patch_meta(self, patch_id: int) -> Dict[str, Any]:
-        """Locate patch in the dataset."""
+        """Get the meta data to locate patch in the dataset.
+
+        Args:
+            patch_id: The number that identifies the patch.
+
+        Returns:
+            Dictionary containing the metadata of the patch:
+            patch_id, tile, column, row, window, imagery path and
+            labels path.
+        """        
 
         tile_id = patch_id // self.grid_size
         column_id = patch_id % self.grid_shape[0]
@@ -368,10 +402,26 @@ class PatchFlowGenerator(keras.utils.Sequence):
         grid_color: str = "white",
         linewidth: int = 3,
         figsize: Tuple[int, int] = (10, 10),
-        imagery_kwargs: Any = None,
-        labels_kwargs: Any = None,
+        imagery_kwargs: Optional[Dict[str, Any]] = None,
+        labels_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
-        """Plot tile and its grid of patches."""
+        """Plot tile and its grid of patches.
+
+        Args:
+            tile_id: Number that identifies the tile to be plotted.
+            show_labels: Whether to plot the labels together with the
+                imagery. Defaults to True.
+            patch_id_color: Color to plot the patch ids. Defaults to "white".
+            patch_id_size: Size of the patch id font. Defaults to "x-large".
+            grid_color: Color of the grid. Defaults to "white".
+            linewidth: Line width of the grid. Defaults to 3.
+            figure_size: Width and height of the figure in inches.
+                Defaults to (10, 8).       
+            imagery_kwargs: These will be passed to the plot_imagery
+                function.
+            labels_kwargs: These will be passed to the plot_labels
+                function.
+        """        
 
         if imagery_kwargs is None:
             imagery_kwargs = {}
@@ -384,6 +434,9 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
         if "show_axis" not in labels_kwargs:
             labels_kwargs["show_axis"] = True
+            
+        if "transparent" not in labels_kwargs:
+            labels_kwargs["transparent"] = [0]
 
         sorted_patch_ids = np.arange(len(self.patch_ids))
         tile_patch_ids = sorted_patch_ids[
@@ -391,6 +444,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
         ]
 
         fig, ax = plt.subplots(figsize=figsize)
+        
         # Remove whitespace around the image
         fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
 
@@ -401,13 +455,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
         ax.yaxis.set_major_locator(
             matplotlib.ticker.MultipleLocator(base=self.patch_shape[1])
         )
-        ax.grid(
-            which="major",
-            axis="both",
-            linestyle="-",
-            color=grid_color,
-            linewidth=linewidth,
-        )
+        ax.grid(color=grid_color, linewidth=linewidth)
 
         # Plot imagery and labels
         paths = self.paired_paths.iloc[tile_id]

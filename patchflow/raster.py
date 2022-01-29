@@ -6,7 +6,7 @@ import rasterio
 import numpy as np
 
 
-RasterType = Union[np.ndarray, str, Path]
+RasterSourceType = Union[str, Path, np.ndarray]
 WindowType = Type[rasterio.windows.Window]
 
 

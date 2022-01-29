@@ -9,7 +9,7 @@ from matplotlib import pyplot as plt
 import rasterio
 import rasterio.plot
 
-from raster import RasterType, WindowType, get_raster_proportions
+from raster import RasterSourceType, WindowType, get_raster_proportions
 
 # TODO: Catch the warning isolatedly
 warnings.filterwarnings("ignore")
@@ -29,7 +29,7 @@ STANDARD_CMAP = matplotlib.colors.ListedColormap(list(COLOR_CODES.values()))
 
 
 def plot_imagery(
-    imagery: RasterType,
+    imagery: RasterSourceType,
     window: Optional[WindowType] = None,
     bands: Sequence[int] = (1, 2, 3),
     raster_shape: bool = True,
@@ -85,7 +85,7 @@ def plot_imagery(
 
 
 def plot_labels(
-    labels: RasterType,
+    labels: RasterSourceType,
     window: Optional[WindowType] = None,
     transparent: Optional[Sequence[int]] = None,
     legend: bool = True,
@@ -177,7 +177,7 @@ def plot_labels(
 
 
 def plot_histogram(
-    imagery: RasterType,
+    imagery: RasterSourceType,
     window: Optional[WindowType] = None,
     bands: Sequence[int] = (1, 2, 3),
     show_axis: bool = True,
@@ -254,7 +254,7 @@ def plot_histogram(
 
 # TODO: fix x axis (it shows a continuous variable instead of a discrete one)
 def plot_proportions(
-    labels: RasterType,
+    labels: RasterSourceType,
     cmap: ColorMapType = STANDARD_CMAP,
     window: Optional[WindowType] = None,
     ax: Optional[plt.Axes] = None,
@@ -314,8 +314,8 @@ def plot_proportions(
 
 
 def describe(
-    imagery: RasterType,
-    labels: RasterType,
+    imagery: RasterSourceType,
+    labels: RasterSourceType,
     window: Optional[WindowType] = None,
     bands: Sequence[int] = (1, 2, 3),
     figure_size: Sequence[int] = (10, 8),
