@@ -1,5 +1,4 @@
 """PatchFlow class."""
-#%%
 from typing import Optional, Union, Sequence, Tuple, Generator, Dict, Any
 import math
 
@@ -37,8 +36,8 @@ class PatchFlowGenerator(keras.utils.Sequence):
         shuffle: bool = True,
         random_seed: Optional[int] = None,
     ):
-        """Initialize PatchFlowGenerator. 
-        
+        """Initialize PatchFlowGenerator.
+
         The class can be instanciated in two different ways:
 
             - Providing a paired paths dataframe outputted by the
@@ -200,7 +199,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
                 Defaults to 2.
 
         Returns:
-            Array containing the proportions of the lables from 0 
+            Array containing the proportions of the lables from 0
             to class_count.
         """
 
@@ -231,7 +230,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
             Dictionary containing the metadata of the patch:
             patch_id, tile, column, row, window, imagery path and
             labels path.
-        """        
+        """
 
         tile_id = patch_id // self.grid_size
         column_id = patch_id % self.grid_shape[0]
@@ -277,58 +276,56 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
         Returns:
             Preprocessed labels and imagery rasters.
-        """        
-        
+        """
+
         patch_meta = self.get_patch_meta(patch_id)
-        
+
         # Load data
         with rasterio.open(patch_meta["labels_path"]) as src:
             labels = src.read([1], window=patch_meta["window"])
-                
+
         with rasterio.open(patch_meta["imagery_path"]) as src:
             imagery = src.read(self.bands, window=patch_meta["window"])
-            
+
             if self.rescaling_factor == "automatic":
-                dtype_rescaling_factor = (
-                        1 / np.iinfo(src.meta["dtype"]).max
-                    )
-            
+                dtype_rescaling_factor = 1 / np.iinfo(src.meta["dtype"]).max
+
         # Handle incomplete patches
         labels_shape = labels.squeeze().shape
         imagery_shape = imagery[0, :, :].shape
-        
+
         if labels_shape == imagery_shape != self.patch_shape:
             if labels_shape[0] and labels_shape[1]:
                 labels = pad_raster(
-                        raster=labels,
-                        out_shape=(*self.patch_shape,),
-                        method=self.padding_method,
-                    )
+                    raster=labels,
+                    out_shape=(*self.patch_shape,),
+                    method=self.padding_method,
+                )
                 imagery = pad_raster(
-                        raster=imagery,
-                        out_shape=(*self.patch_shape,),
-                        method=self.padding_method,
-                    )
+                    raster=imagery,
+                    out_shape=(*self.patch_shape,),
+                    method=self.padding_method,
+                )
             else:
                 labels = np.full(
-                        shape=(1, *self.patch_shape),
-                        fill_value=self.filler_label,
-                        dtype=np.uint8,
-                    )
-                imagery = np.zeros(
-                        shape=(len(self.bands), *self.patch_shape),
-                        dtype=np.uint8,
-                    )
-
-        elif labels_shape != imagery_shape != self.patch_shape:
-            labels = np.full(
                     shape=(1, *self.patch_shape),
                     fill_value=self.filler_label,
                     dtype=np.uint8,
                 )
-            imagery = np.zeros(
-                    shape=(len(self.bands), *self.patch_shape), dtype=np.uint8
+                imagery = np.zeros(
+                    shape=(len(self.bands), *self.patch_shape),
+                    dtype=np.uint8,
                 )
+
+        elif labels_shape != imagery_shape != self.patch_shape:
+            labels = np.full(
+                shape=(1, *self.patch_shape),
+                fill_value=self.filler_label,
+                dtype=np.uint8,
+            )
+            imagery = np.zeros(
+                shape=(len(self.bands), *self.patch_shape), dtype=np.uint8
+            )
 
         # Reshape as image
         labels = rasterio.plot.reshape_as_image(labels)
@@ -337,23 +334,23 @@ class PatchFlowGenerator(keras.utils.Sequence):
         # Resize
         if labels.squeeze().shape != self.output_shape != None:
             labels = skimage.transform.resize(
-                    image=labels,
-                    output_shape=(*self.output_shape, 1),
-                    mode=self.resizing_method,
-                    preserve_range=True,
-                )
+                image=labels,
+                output_shape=(*self.output_shape, 1),
+                mode=self.resizing_method,
+                preserve_range=True,
+            )
             imagery = skimage.transform.resize(
-                    image=imagery,
-                    output_shape=(*self.output_shape, len(self.bands)),
-                    mode=self.resizing_method,
-                )
-            
+                image=imagery,
+                output_shape=(*self.output_shape, len(self.bands)),
+                mode=self.resizing_method,
+            )
+
         # Rescale
         if isinstance(self.rescaling_factor, float):
             imagery = imagery * self.rescaling_factor
         elif self.rescaling_factor == "automatic":
             imagery = imagery * dtype_rescaling_factor
-        
+
         return labels, imagery
 
     def plot_batch(
@@ -367,15 +364,15 @@ class PatchFlowGenerator(keras.utils.Sequence):
         """Plot some patches from a batch and show them in a matrix.
 
         Args:
-            batch_id: Index of the batch to plot. If None, the last batch 
+            batch_id: Index of the batch to plot. If None, the last batch
                 used is plotted. Defaults to None.
-            matrix_shape: Shape of the plot matrix provided as (width, 
+            matrix_shape: Shape of the plot matrix provided as (width,
                 height). Defaults to (5, 5)
             imagery_kwargs: These will be passed to the plot_imagery
                 function.
             labels_kwargs: These will be passed to the plot_labels
                 function.
-        """        
+        """
 
         if imagery_kwargs is None:
             imagery_kwargs = {}
@@ -426,17 +423,17 @@ class PatchFlowGenerator(keras.utils.Sequence):
             tile_id: Number that identifies the tile to be plotted.
             show_labels: Whether to plot the labels together with the
                 imagery. Defaults to True.
-            patch_id_color: Color to plot the patch ids. Defaults to `white`.
-            patch_id_size: Size of the patch id font. Defaults to `x-large`.
-            grid_color: Color of the grid. Defaults to `white`.
+            patch_id_color: Color to plot the patch ids. Default: white.
+            patch_id_size: Size of the patch id font. Default: x-large.
+            grid_color: Color of the grid. Default: white.
             linewidth: Line width of the grid. Defaults to 3.
             figure_size: Width and height of the figure in inches.
-                Defaults to (10, 8).       
+                Defaults to (10, 8).
             imagery_kwargs: These will be passed to the plot_imagery
                 function.
             labels_kwargs: These will be passed to the plot_labels
                 function.
-        """        
+        """
 
         if imagery_kwargs is None:
             imagery_kwargs = {}
@@ -449,7 +446,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
         if "show_axis" not in labels_kwargs:
             labels_kwargs["show_axis"] = True
-            
+
         if "transparent" not in labels_kwargs:
             labels_kwargs["transparent"] = [0]
 
@@ -459,7 +456,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
         ]
 
         fig, ax = plt.subplots(figsize=figsize)
-        
+
         # Remove whitespace around the image
         fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
 

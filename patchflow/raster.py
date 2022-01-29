@@ -12,14 +12,14 @@ WindowType = Type[rasterio.windows.Window]
 
 def get_raster_proportions(raster: np.ndarray) -> Dict[int, float]:
     """Calculate pixel proportion per value in raster.
-    
+
     Args:
         raster: Discrete array.
 
     Returns:
-        Dictionary containing each value present in the input array 
+        Dictionary containing each value present in the input array
         and its proportion.
-    """    
+    """
     values, counts = np.unique(raster, return_counts=True)
     proportions = counts / raster.size
 
@@ -38,7 +38,7 @@ def pad_raster(
     Args:
         raster: Two or three dimensional array shaped as raster.
         out_shape: Shape (width, height) to which the input raster will
-            be padded. 
+            be padded.
         kwargs: These will be passsed to the numpy.pad function.
             See full list at:
             https://numpy.org/doc/stable/reference/generated/numpy.pad.html

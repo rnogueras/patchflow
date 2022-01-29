@@ -9,7 +9,11 @@ from matplotlib import pyplot as plt
 import rasterio
 import rasterio.plot
 
-from patchflow.raster import RasterSourceType, WindowType, get_raster_proportions
+from patchflow.raster import (
+    RasterSourceType,
+    WindowType,
+    get_raster_proportions,
+)
 
 # TODO: Catch the warning isolatedly
 warnings.filterwarnings("ignore")
@@ -127,7 +131,7 @@ def plot_labels(
 
     if "alpha" not in kwargs:
         kwargs["alpha"] = 0.7
-        
+
     # TODO: Add transparent default
 
     if isinstance(labels, (str, Path)):
