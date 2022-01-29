@@ -1,5 +1,5 @@
 """Functions for accessing the data."""
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict, List, Union, Any
 import os
 from pathlib import Path
 
@@ -8,7 +8,7 @@ import pandas as pd
 
 
 def pair_paths(
-    directory: str,
+    directory: Union[str, Path],
     imagery_folder_name: str = "imagery",
     labels_folder_name: str = "labels",
 ) -> pd.DataFrame:
@@ -21,9 +21,9 @@ def pair_paths(
 
     Args:
         directory: Path to the data main directory.
-        imagery_folder: Name of the folder where the imagery is
+        imagery_folder_name: Name of the folder where the imagery is
             stored. Defaults to `imagery`.
-        labels_folder: Name of the folder where the labels are
+        labels_folder_name: Name of the folder where the labels are
             stored. Defaults to `labels`.
 
     Returns:
@@ -65,7 +65,7 @@ def tag_patches(
     shuffle: bool = True,
     verbose: bool = True,
     random_seed: bool = None,
-) -> List[Dict, Dict, Dict]:
+) -> List[Dict[str, Any]]:
     """Generate training, validation and test subsets of patch
     indexes from the tile and patch sizes provided.
 

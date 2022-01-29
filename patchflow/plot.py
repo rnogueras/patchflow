@@ -25,8 +25,8 @@ COLOR_CODES = dict(
     turquoise="#43AA8B",
     green="#90BE6D",
     dark_green="#104547",
-    red="#F94144",
     yellow="#F8961E",
+    red="#F94144",
 )
 
 STANDARD_CMAP = matplotlib.colors.ListedColormap(list(COLOR_CODES.values()))

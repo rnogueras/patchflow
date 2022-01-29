@@ -258,6 +258,11 @@ class PatchFlowGenerator(keras.utils.Sequence):
     def load_current_batch(self) -> BatchType:
         """Load and preprocess the current batch."""
 
+        if self.current_batch is None:
+            raise AttributeError(
+                "No batch has been initialized yet."
+            )
+
         Y = np.empty([self.batch_size, *self.output_shape, 1], dtype=np.uint8)
         X = np.empty([self.batch_size, *self.output_shape, len(self.bands)])
 
