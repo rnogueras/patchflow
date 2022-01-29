@@ -73,7 +73,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
             filler_label: Pixel label for the filler class. This value
                 will be used to label any empty area found during the
                 data generation. E.g.: incomplete tiles. Defaults to 0.
-            padding_method: Numpy padding mode. Defaults to "symmetric".
+            padding_method: Numpy padding mode. Defaults to `symmetric`.
                 See full list at:
                 https://numpy.org/doc/stable/reference/generated/numpy.pad.html
             output_shape: Shape of the output images. If the output
@@ -280,7 +280,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
         
         patch_meta = self.get_patch_meta(patch_id)
         
-        # Load
+        # Load data
         with rasterio.open(patch_meta["labels_path"]) as src:
             labels = src.read([1], window=patch_meta["window"])
                 
@@ -292,7 +292,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
                         1 / np.iinfo(src.meta["dtype"]).max
                     )
             
-        # Pad
+        # Handle incomplete patches
         labels_shape = labels.squeeze().shape
         imagery_shape = imagery[0, :, :].shape
         
@@ -425,9 +425,9 @@ class PatchFlowGenerator(keras.utils.Sequence):
             tile_id: Number that identifies the tile to be plotted.
             show_labels: Whether to plot the labels together with the
                 imagery. Defaults to True.
-            patch_id_color: Color to plot the patch ids. Defaults to "white".
-            patch_id_size: Size of the patch id font. Defaults to "x-large".
-            grid_color: Color of the grid. Defaults to "white".
+            patch_id_color: Color to plot the patch ids. Defaults to `white`.
+            patch_id_size: Size of the patch id font. Defaults to `x-large`.
+            grid_color: Color of the grid. Defaults to `white`.
             linewidth: Line width of the grid. Defaults to 3.
             figure_size: Width and height of the figure in inches.
                 Defaults to (10, 8).       

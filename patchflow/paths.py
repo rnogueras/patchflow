@@ -1,6 +1,6 @@
 #%%
 """Functions for accessing the data."""
-
+from typing import Tuple, Dict
 import os
 from pathlib import Path
 
@@ -9,29 +9,25 @@ import pandas as pd
 
 
 def generate_paired_paths(
-    directory: str, imagery_folder_name="imagery", labels_folder_name="labels"
-):
-    """Generate imagery / labels paired data paths to retrieve
+    directory: str,
+    imagery_folder_name: str = "imagery",
+    labels_folder_name: str = "labels",
+) -> pd.DataFrame:
+    """Generate imagery & labels paired data paths to retrieve
     the data from.
 
     Paired files are expected to be named the same in both
     directories. Only the file names found in both folders will
     be returned.
 
-    Parameters
-    ----------
-    directory : str, Path
-        Path to the data main directory.
-    imagery_folder : str, optional
-        Name of the folder where the imagery is stored. `imagery`
-        by default.
-    labels_folder : str, optional
-        Name of the folder where the labels are stored. `labels`
-        by default.
+    Args:
+        directory: Path to the data main directory.
+        imagery_folder: Name of the folder where the imagery is 
+            stored. Defaults to `imagery`.
+        labels_folder: Name of the folder where the labels are 
+            stored. Defaults to `labels`.
 
-    Returns
-    -------
-    pd.DataFrame
+    Returns:
         A dataframe containing the found paired paths.
 
     """
@@ -62,61 +58,50 @@ def generate_paired_paths(
 
 
 def generate_patch_ids(
-    paired_paths,
-    tile_shape,
-    patch_shape,
-    validation_size=0.2,
-    test_size=0.1,
-    shuffle=True,
-    verbose=True,
-    random_seed=None,
-):
-    """Calculate and generate a set of indexes based on the tile
-    and patch sizes.
+    paired_paths: pd.DataFrame,
+    tile_shape: Tuple[int, int],
+    patch_shape: Tuple[int, int],
+    validation_size: float = 0.2,
+    test_size: float = 0.1,
+    shuffle: bool = True,
+    verbose: bool = True,
+    random_seed: bool = None,
+) -> Tuple[Dict, Dict, Dict]:
+    """Generate training, validation and test subsets of patch
+    indexes from the tile and patch sizes provided.
 
-    This can be useful when the number of tiles is small or when
-    you want to generate validation and test sets that have a
-    distribution strictly similar to the training set. The function
-    generates a single set of patches from the tiles provided and
-    then splits them into the three subsets following the specified
-    criteria. This ensures that the patches in each set come from
-    any of the original tiles without the distribution of the tiles
-    skewing the result. In no case are the patches generated, only
-    the indexes needed to calculate the windows are created in this
-    step, so both the amount of processing and the size of the output
-    are very light.
+    This function generates a single set of patches from the tiles 
+    provided and then splits them into three subsets following the 
+    specified criteria. This ensures that the patches in each set may 
+    come from any tile, so their distribution do not skew the results. 
+    In no case are the patches generated, only the indexes needed to 
+    calculate the windows are created in this step, so both the amount 
+    of processing and the size of the output are very light.
 
-    Parameters
-    ----------
-    paired_paths : pd.DataFrame
-        The output of the generate_tile_paths function.
-    tile_shape : tuple of integers
-        Shape of the tile in pixels, provided as a tuple containing
-        a pair of integers. E.g.: (1000, 1000).
-    patch_shape :
-        Shape of the tile in pixels, provided as a tuple containing
-        a pair of integers. E.g.: (128, 128).
-    validation_size : float, optional
-        A real number between 0 and 1 specifying the proportion of
-        patches to place in the validation test. 0.2 by default.
-    test_size : float, optional
-        A real number between 0 and 1 specifying the proportion of
-        patches to place in the validation test. 0.1 by default.
-    shuffle : bool, optional
-        Whether to shuffle patches before splitting them into subsets.
-    verbose : bool, optional
-        Whether to print the size in patches of each subset. True
-        by default.
-    random_seed : int
-        Random seed to shuffle the generated ids.
+    Args:
+        paired_paths: The output of the generate_tile_paths function.
+        tile_shape: Shape of the tile in pixels, provided as a tuple
+            containing a pair of integers. E.g.: (1000, 1000).
+        patch_shape: Shape of the tile in pixels, provided as a tuple
+            containing a pair of integers. E.g.: (128, 128).
+        validation_size: A real number between 0 and 1 specifying the
+            proportion of patches to place in the validation test.
+            0.2 by default.
+        test_size: A real number between 0 and 1 specifying the
+            proportion of patches to place in the validation test.
+            0.1 by default.
+        shuffle: Whether to shuffle patches before splitting them into
+            subsets.
+        verbose: Whether to print the size in patches of each subset.
+            True by default.
+        random_seed: Random seed to shuffle the generated ids.
 
-    Returns
-    -------
-    List of dictionaries
+    Returns:
         Three dictionaries each of which contains the paired_paths,
         tile_shape, patche_shape and patch_indexes of a different
-        subset, so that it can be easily passed to a different
-        instance of the PatchFlowGenerator using the ** operator.
+        subset, so that they can be easily passed to a instances of
+        the PatchFlowGenerator using the ** operator.
+
     """
 
     grid_size = np.prod(np.array(tile_shape) // np.array(patch_shape))
