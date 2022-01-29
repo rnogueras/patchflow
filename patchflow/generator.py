@@ -10,8 +10,8 @@ import rasterio
 import skimage.transform
 from tensorflow import keras
 
-from patchflow.raster import get_raster_proportions, pad_raster
-from patchflow.plot import plot_imagery, plot_labels
+from patchflow.raster import get_proportions, pad_raster
+from patchflow.plot import show_imagery, show_labels
 
 
 BatchType = Tuple[np.ndarray, np.ndarray]
@@ -211,7 +211,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
             batch = next(self)
 
             for label_array in batch[1]:
-                raster_proportions = get_raster_proportions(label_array)
+                raster_proportions = get_proportions(label_array)
 
                 for label, proportion in raster_proportions.items():
                     proportion_array[label] += proportion
@@ -220,7 +220,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
         return proportion_array / np.sum(proportion_array)
 
-    def get_patch_meta(self, patch_id: int) -> Dict[str, Any]:
+    def locate_patch(self, patch_id: int) -> Dict[str, Any]:
         """Get metadata to locate the patch in the dataset.
 
         Args:
@@ -258,6 +258,11 @@ class PatchFlowGenerator(keras.utils.Sequence):
     def load_current_batch(self) -> BatchType:
         """Load and preprocess the current batch."""
 
+        if self.current_batch is None:
+            raise AttributeError(
+                "No batch has been initialized yet."
+            )
+
         Y = np.empty([self.batch_size, *self.output_shape, 1], dtype=np.uint8)
         X = np.empty([self.batch_size, *self.output_shape, len(self.bands)])
 
@@ -278,7 +283,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
             Preprocessed labels and imagery rasters.
         """
 
-        patch_meta = self.get_patch_meta(patch_id)
+        patch_meta = self.locate_patch(patch_id)
 
         # Load data
         with rasterio.open(patch_meta["labels_path"]) as src:
@@ -398,17 +403,17 @@ class PatchFlowGenerator(keras.utils.Sequence):
         for index in range(matrix_height * matrix_width):
             ax = plt.subplot(matrix_height, matrix_width, index + 1)
             ax.set_title(self.current_batch[index])
-            plot_imagery(
+            show_imagery(
                 X_batch[index], raster_shape=False, ax=ax, **imagery_kwargs
             )
-            plot_labels(Y_batch[index], ax=ax, **labels_kwargs)
+            show_labels(Y_batch[index], ax=ax, **labels_kwargs)
 
         plt.show()
 
     def plot_grid(
         self,
         tile_id: int,
-        show_labels: bool = True,
+        plot_labels: bool = True,
         patch_id_color: str = "white",
         patch_id_size: str = "x-large",
         grid_color: str = "white",
@@ -421,7 +426,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
         Args:
             tile_id: Number that identifies the tile to be plotted.
-            show_labels: Whether to plot the labels together with the
+            plot_labels: Whether to plot the labels together with the
                 imagery. Defaults to True.
             patch_id_color: Color to plot the patch ids. Default: white.
             patch_id_size: Size of the patch id font. Default: x-large.
@@ -471,9 +476,9 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
         # Plot imagery and labels
         paths = self.paired_paths.iloc[tile_id]
-        plot_imagery(paths["imagery_path"], ax=ax, **imagery_kwargs)
-        if show_labels:
-            plot_labels(paths["labels_path"], ax=ax, **labels_kwargs)
+        show_imagery(paths["imagery_path"], ax=ax, **imagery_kwargs)
+        if plot_labels:
+            show_labels(paths["labels_path"], ax=ax, **labels_kwargs)
 
         # Plot ids
         for row in range(self.grid_shape[1]):

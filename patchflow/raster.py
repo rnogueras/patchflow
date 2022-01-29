@@ -10,7 +10,7 @@ RasterSourceType = Union[str, Path, np.ndarray]
 WindowType = Type[rasterio.windows.Window]
 
 
-def get_raster_proportions(raster: np.ndarray) -> Dict[int, float]:
+def get_proportions(raster: np.ndarray) -> Dict[int, float]:
     """Calculate pixel proportion per value in raster.
 
     Args:
@@ -20,6 +20,7 @@ def get_raster_proportions(raster: np.ndarray) -> Dict[int, float]:
         Dictionary containing each value present in the input array
         and its proportion.
     """
+
     values, counts = np.unique(raster, return_counts=True)
     proportions = counts / raster.size
 
@@ -45,7 +46,6 @@ def pad_raster(
 
     Returns:
         padded array
-
     """
 
     if not 1 < len(raster.shape) < 4:
