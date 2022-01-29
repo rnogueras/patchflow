@@ -42,10 +42,10 @@ def pad(raster, out_shape, method="symmetric"):
 
     # Using np.ceil to deal with uneven numbers (it is
     # better to get a larger array and crop it afterwards).
-    pad_width = (
-        int(np.ceil((out_shape[0] - raster.shape[1]) / 2)),
-        int(np.ceil((out_shape[1] - raster.shape[2]) / 2)),
-    )
+    dim_0 = int(np.ceil((out_shape[0] - raster.shape[1]) / 2))
+    dim_1 = int(np.ceil((out_shape[1] - raster.shape[2]) / 2))
+    pad_width = (dim_0, dim_0), (dim_1, dim_1)
+    
     padded_raster = np.array(
         [np.pad(band, pad_width=pad_width, mode=method) for band in raster]
     )

@@ -288,15 +288,16 @@ class PatchFlowGenerator(keras.utils.Sequence):
                 
         with rasterio.open(patch_meta["imagery_path"]) as src:
             imagery = src.read(self.bands, window=patch_meta["window"])
+            
             if self.rescaling_factor == "automatic":
                 dtype_rescaling_factor = (
                         1 / np.iinfo(src.meta["dtype"]).max
                     )
-
+            
+        # Pad
         labels_shape = labels.squeeze().shape
         imagery_shape = imagery[0, :, :].shape
-
-        # Pad
+        
         if labels_shape == imagery_shape != self.patch_shape:
             if labels_shape[0] and labels_shape[1]:
                 labels = pad(
