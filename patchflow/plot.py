@@ -12,7 +12,7 @@ import rasterio.plot
 from patchflow.raster import (
     RasterSourceType,
     WindowType,
-    get_raster_proportions,
+    get_proportions,
 )
 
 # TODO: Catch the warning isolatedly
@@ -32,7 +32,7 @@ COLOR_CODES = dict(
 STANDARD_CMAP = matplotlib.colors.ListedColormap(list(COLOR_CODES.values()))
 
 
-def plot_imagery(
+def show_imagery(
     imagery: RasterSourceType,
     window: Optional[WindowType] = None,
     bands: Sequence[int] = (1, 2, 3),
@@ -88,7 +88,7 @@ def plot_imagery(
     return ax
 
 
-def plot_labels(
+def show_labels(
     labels: RasterSourceType,
     window: Optional[WindowType] = None,
     transparent: Optional[Sequence[int]] = None,
@@ -182,7 +182,7 @@ def plot_labels(
     return ax
 
 
-def plot_histogram(
+def show_histogram(
     imagery: RasterSourceType,
     window: Optional[WindowType] = None,
     bands: Sequence[int] = (1, 2, 3),
@@ -259,7 +259,7 @@ def plot_histogram(
 
 
 # TODO: fix x axis (it shows a continuous variable instead of a discrete one)
-def plot_proportions(
+def show_proportions(
     labels: RasterSourceType,
     cmap: ColorMapType = STANDARD_CMAP,
     window: Optional[WindowType] = None,
@@ -270,7 +270,7 @@ def plot_proportions(
     """Plot proportion of each class present in a labels raster.
 
     Args:
-        labels: Categorical raster to plot. If string or Path object,
+        labels: Discrete raster to plot. If string or Path object,
             it will be interpreted as a path and open using rasterio.
         cmap: Matplotlib color map. If not provided, a default cmap
             will be used.
@@ -291,7 +291,7 @@ def plot_proportions(
         with rasterio.open(labels) as src:
             labels = src.read(1, window=window)
 
-    class_proportions = get_raster_proportions(labels)
+    class_proportions = get_proportions(labels)
     label_values = list(class_proportions.keys())
     proportions = list(class_proportions.values())
     # TODO: put rescale function in raster module
@@ -358,16 +358,16 @@ def describe(
     plt.figure(figsize=figure_size)
 
     ax_1 = plt.subplot2grid((4, 4), (0, 0), colspan=2, rowspan=3)
-    plot_imagery(imagery=imagery, bands=bands, ax=ax_1)
+    show_imagery(imagery=imagery, bands=bands, ax=ax_1)
 
     ax_2 = plt.subplot2grid((4, 4), (0, 2), colspan=2, rowspan=3)
-    plot_labels(labels=labels, ax=ax_2, alpha=1, legend=False)
+    show_labels(labels=labels, ax=ax_2, alpha=1, legend=False)
 
     ax_3 = plt.subplot2grid((4, 4), (3, 0), colspan=2)
-    plot_histogram(imagery=imagery, ax=ax_3)
+    show_histogram(imagery=imagery, ax=ax_3)
 
     ax_4 = plt.subplot2grid((4, 4), (3, 2), colspan=2)
-    plot_proportions(labels=labels, ax=ax_4)
+    show_proportions(labels=labels, ax=ax_4)
 
     plt.tight_layout()
     plt.show()
