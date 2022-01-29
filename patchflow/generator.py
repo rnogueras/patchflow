@@ -18,7 +18,6 @@ from plot import plot_imagery, plot_labels
 BatchType = Tuple[np.ndarray, np.ndarray]
 
 
-# TODO: Add documentation
 class PatchFlowGenerator(keras.utils.Sequence):
     """Patch generator to feed Keras segmentation models."""
 
@@ -271,7 +270,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
         return X, Y
 
     def load_patch(self, patch_id: int) -> Tuple[np.ndarray, np.ndarray]:
-        """Load and preprocess the specified patch
+        """Load and preprocess the specified patch.
 
         Args:
             patch_id: Identification number of the patch to load.
