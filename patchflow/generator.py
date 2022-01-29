@@ -1,5 +1,4 @@
 """PatchFlow class."""
-#%%
 from typing import Optional, Union, Sequence, Tuple, Generator, Dict, Any
 import math
 
@@ -11,7 +10,7 @@ import rasterio
 import skimage.transform
 from tensorflow import keras
 
-from raster import get_raster_proportions, pad
+from raster import get_raster_proportions, pad_raster
 from plot import plot_imagery, plot_labels
 
 
@@ -299,12 +298,12 @@ class PatchFlowGenerator(keras.utils.Sequence):
         
         if labels_shape == imagery_shape != self.patch_shape:
             if labels_shape[0] and labels_shape[1]:
-                labels = pad(
+                labels = pad_raster(
                         raster=labels,
                         out_shape=(*self.patch_shape,),
                         method=self.padding_method,
                     )
-                imagery = pad(
+                imagery = pad_raster(
                         raster=imagery,
                         out_shape=(*self.patch_shape,),
                         method=self.padding_method,

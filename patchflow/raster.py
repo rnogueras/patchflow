@@ -1,6 +1,5 @@
-#%%
 """Functions for working with rasters."""
-from typing import Union, Type, Tuple, Any
+from typing import Union, Type, Tuple, Any, Dict
 from pathlib import Path
 
 import rasterio
@@ -11,23 +10,22 @@ RasterSourceType = Union[str, Path, np.ndarray]
 WindowType = Type[rasterio.windows.Window]
 
 
-def get_raster_proportions(raster):
+def get_raster_proportions(raster: np.ndarray) -> Dict[int, float]:
     """Calculate pixel proportion per value in raster.
+    
+    Args:
+        raster: Discrete array.
 
-    Parameters
-    ----------
-    raster : np.array
-        An array containing the rasterized labels.
-
-    Returns
-    -------
-    Dictionary
-        value: proportion
-    """
+    Returns:
+        Dictionary containing each value present in the input array 
+        and its proportion.
+    """    
     values, counts = np.unique(raster, return_counts=True)
     proportions = counts / raster.size
 
-    return {value: proportion for value, proportion in zip(values, proportions)}
+    return {
+        value: proportion for value, proportion in zip(values, proportions)
+    }
 
 
 def pad_raster(
