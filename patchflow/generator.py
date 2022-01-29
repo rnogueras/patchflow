@@ -1,4 +1,5 @@
 """PatchFlow class."""
+#%%
 from typing import Optional, Union, Sequence, Tuple, Generator, Dict, Any
 import math
 
@@ -10,8 +11,8 @@ import rasterio
 import skimage.transform
 from tensorflow import keras
 
-from raster import get_raster_proportions, pad_raster
-from plot import plot_imagery, plot_labels
+from patchflow.raster import get_raster_proportions, pad_raster
+from patchflow.plot import plot_imagery, plot_labels
 
 
 BatchType = Tuple[np.ndarray, np.ndarray]
