@@ -1,4 +1,3 @@
-#%%
 """Functions for accessing the data."""
 from typing import Tuple, Dict
 import os
@@ -22,9 +21,9 @@ def generate_paired_paths(
 
     Args:
         directory: Path to the data main directory.
-        imagery_folder: Name of the folder where the imagery is 
+        imagery_folder: Name of the folder where the imagery is
             stored. Defaults to `imagery`.
-        labels_folder: Name of the folder where the labels are 
+        labels_folder: Name of the folder where the labels are
             stored. Defaults to `labels`.
 
     Returns:
@@ -70,12 +69,12 @@ def generate_patch_ids(
     """Generate training, validation and test subsets of patch
     indexes from the tile and patch sizes provided.
 
-    This function generates a single set of patches from the tiles 
-    provided and then splits them into three subsets following the 
-    specified criteria. This ensures that the patches in each set may 
-    come from any tile, so their distribution do not skew the results. 
-    In no case are the patches generated, only the indexes needed to 
-    calculate the windows are created in this step, so both the amount 
+    This function generates a single set of patches from the tiles
+    provided and then splits them into three subsets following the
+    specified criteria. This ensures that the patches in each set may
+    come from any tile, so their distribution do not skew the results.
+    In no case are the patches generated, only the indexes needed to
+    calculate the windows are created in this step, so both the amount
     of processing and the size of the output are very light.
 
     Args:
@@ -125,7 +124,9 @@ def generate_patch_ids(
 
     if verbose:
         print(f"{len(training_ids)} patches have been set up for training.")
-        print(f"{len(validation_ids)} patches have been set up for validating.")
+        print(
+            f"{len(validation_ids)} patches have been set up for validating."
+        )
         print(f"{len(test_ids)} patches have been set up for testing.")
 
     return [
