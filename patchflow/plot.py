@@ -25,12 +25,12 @@ warnings.filterwarnings("ignore")
 ColorMapType = Type[matplotlib.colors.ListedColormap]
 
 COLOR_CODES = dict(
-    blue="#577590",
-    turquoise="#43AA8B",
-    green="#90BE6D",
-    dark_green="#104547",
-    yellow="#F8961E",
-    red="#F94144",
+    grey="#a3a3a3",
+    blue="#277da1",
+    green="#90be6d",
+    turoquoise="#43aa8b",
+    yellow="#f9c74f",
+    red="#f94144",
 )
 
 STANDARD_CMAP = matplotlib.colors.ListedColormap(list(COLOR_CODES.values()))
@@ -290,7 +290,9 @@ def describe(
     show_imagery(source=imagery_raster, bands=bands, ax=ax_1)
 
     ax_2 = plt.subplot2grid((4, 4), (0, 2), colspan=2, rowspan=3)
-    show_labels(source=label_raster, ax=ax_2, alpha=1, legend=False, transparent=[])
+    show_labels(
+        source=label_raster, ax=ax_2, alpha=1, legend=False, transparent=[]
+    )
 
     ax_3 = plt.subplot2grid((4, 4), (3, 0), colspan=2)
     show_histogram(source=imagery_raster, ax=ax_3)
