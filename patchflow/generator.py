@@ -308,12 +308,12 @@ class PatchFlowGenerator(keras.utils.Sequence):
                 labels = pad_raster(
                     raster=labels,
                     out_shape=(*self.patch_shape,),
-                    method=self.padding_method,
+                    mode=self.padding_method,
                 )
                 imagery = pad_raster(
                     raster=imagery,
                     out_shape=(*self.patch_shape,),
-                    method=self.padding_method,
+                    mode=self.padding_method,
                 )
             else:
                 labels = np.full(
