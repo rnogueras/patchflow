@@ -262,8 +262,13 @@ class PatchFlowGenerator(keras.utils.Sequence):
         if self.current_batch is None:
             raise AttributeError("No batch has been initialized yet.")
 
-        Y = np.empty([self.batch_size, *self.output_shape, 1], dtype=np.uint8)
-        X = np.empty([self.batch_size, *self.output_shape, len(self.bands)])
+        Y = np.empty(
+            [self.batch_size, *self.output_shape, 1], dtype=np.float32
+        )
+        X = np.empty(
+            [self.batch_size, *self.output_shape, len(self.bands)],
+            dtype=np.float32,
+        )
 
         for index, patch_id in enumerate(self.current_batch):
             labels, imagery = self.load_patch(patch_id)
@@ -360,9 +365,9 @@ class PatchFlowGenerator(keras.utils.Sequence):
         self,
         batch_index: Optional[int] = None,
         matrix_shape: Tuple[int, int] = (5, 5),
-        figsize: Tuple[int, int] = (14, 14),
-        imagery_kwargs: Optional[Dict[str, Any]] = None,
-        labels_kwargs: Optional[Dict[str, Any]] = None,
+        figsize: Tuple[int, int] = (10, 10),
+        imagery_kwargs: Optional[ParamsType] = None,
+        labels_kwargs: Optional[ParamsType] = None,
     ) -> plt.Axes:
         """Plot some patches from a batch and show them in a matrix.
 
@@ -376,7 +381,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
                 function.
             labels_kwargs: These will be passed to the plot_labels
                 function.
-                
+
         Returns:
             Axes with plot.
         """
@@ -408,8 +413,9 @@ class PatchFlowGenerator(keras.utils.Sequence):
         tile_id: int,
         plot_labels: bool = True,
         figsize: Tuple[int, int] = (10, 10),
-        imagery_kwargs: Optional[Dict[str, Any]] = None,
-        labels_kwargs: Optional[Dict[str, Any]] = None,
+        imagery_kwargs: Optional[ParamsType] = None,
+        labels_kwargs: Optional[ParamsType] = None,
+        grid_kwargs: Optional[ParamsType] = None,
     ) -> plt.Axes:
         """Plot tile and its grid of patches.
 
@@ -449,6 +455,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
             grid_shape=self.grid_shape,
             patch_ids=tile_patch_ids,
             ax=ax,
+            **(grid_kwargs or {}),
         )
 
         return ax
@@ -477,7 +484,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
             ax = plt.gca()
 
         patch_meta = self.locate_patch(patch_id)
-        
+
         show_imagery(
             patch_meta["imagery_path"],
             window=patch_meta["window"],
