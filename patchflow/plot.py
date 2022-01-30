@@ -17,6 +17,8 @@ from patchflow.raster import (
     rescale,
 )
 
+# TODO: Handle nodata
+
 # TODO: Catch the warning isolatedly
 warnings.filterwarnings("ignore")
 
@@ -120,14 +122,8 @@ def show_labels(
         Axes with plot.
     """
 
-    if "interpolation" not in kwargs:
-        kwargs["interpolation"] = "nearest"
-
-    if "cmap" not in kwargs:
-        kwargs["cmap"] = STANDARD_CMAP
-
-    if "alpha" not in kwargs:
-        kwargs["alpha"] = 0.7
+    defaults = dict(interpolation="nearest", alpha=0.7, cmap=STANDARD_CMAP)
+    kwargs = {**defaults, **kwargs}
 
     if isinstance(labels, (str, Path)):
         with rasterio.open(labels) as src:
@@ -155,7 +151,9 @@ def show_labels(
         valid_color_codes = kwargs["cmap"](cmap_valid_indexes)
 
         categories = [
-            matplotlib.patches.Patch([0], [0], color=color_code, alpha=kwargs["alpha"])
+            matplotlib.patches.Patch(
+                [0], [0], color=color_code, alpha=kwargs["alpha"]
+            )
             for color_code in valid_color_codes
         ]
 
@@ -203,27 +201,17 @@ def show_histogram(
         Axes with plot.
     """
 
-    if "histtype" not in kwargs:
-        kwargs["histtype"] = "step"
-
-    if "color" not in kwargs:
-        kwargs["color"] = [
-            COLOR_CODES["red"],
-            COLOR_CODES["green"],
-            COLOR_CODES["blue"],
-        ]
-
-    if "stacked" not in kwargs:
-        kwargs["stacked"] = True
-
-    if "fill" not in kwargs:
-        kwargs["fill"] = True
+    defaults = dict(
+        histtype="step",
+        color=(COLOR_CODES["red"], COLOR_CODES["green"], COLOR_CODES["blue"]),
+        stacked=True,
+        fill=True,
+    )
 
     if isinstance(imagery, (str, Path)):
         with rasterio.open(imagery) as src:
             imagery = src.read(bands, window=window)
 
-    # TODO: Handle nodata here, convert it to nans
     value_range = np.nanmin(imagery), np.nanmax(imagery)
 
     if ax is None:
@@ -232,7 +220,7 @@ def show_histogram(
     ax.hist(
         x=imagery.reshape(imagery.shape[0], -1).T,
         range=value_range,
-        **kwargs,
+        **{**defaults, **kwargs},
     )
 
     if not show_axis:
@@ -241,10 +229,8 @@ def show_histogram(
     return ax
 
 
-# TODO: fix x axis (it shows a continuous variable instead of a discrete one)
 def show_proportions(
     labels: RasterSourceType,
-    cmap: ColorMapType = STANDARD_CMAP,
     window: Optional[WindowType] = None,
     ax: Optional[plt.Axes] = None,
     show_axis: bool = True,
@@ -255,8 +241,6 @@ def show_proportions(
     Args:
         labels: Discrete raster to plot. If string or Path object,
             it will be interpreted as a path and open using rasterio.
-        cmap: Matplotlib color map. If not provided, a default cmap
-            will be used.
         window: A rasterio window to plot only a subset of the raster.
             Ignored if the raster comes as array.
         show_axis: If true, the axis of the image will be displayed.
@@ -275,20 +259,18 @@ def show_proportions(
             labels = src.read(1, window=window)
 
     class_proportions = get_proportions(labels)
-    label_values = list(class_proportions.keys())
+    label_values = [str(key) for key in class_proportions.keys()]
     proportions = list(class_proportions.values())
 
-    cmap = cmap.reversed()
+    defaults = dict(color=STANDARD_CMAP, x=label_values)
+    kwargs = {**defaults, **kwargs}
+    kwargs["color"] = kwargs["color"].reversed()
+    kwargs["color"] = kwargs["color"](rescale(proportions))
 
     if ax is None:
         ax = plt.gca()
 
-    ax.bar(
-        x=label_values,
-        height=proportions,
-        color=cmap(rescale(proportions)),
-        **kwargs,
-    )
+    ax.bar(height=proportions, **kwargs)
 
     if not show_axis:
         ax.axis("off")
@@ -350,7 +332,7 @@ def describe(
     plt.show()
 
 
-def show_grid(
+def add_grid(
     patch_shape: Sequence[int],
     grid_shape: Optional[Sequence[int]] = None,
     patch_ids: Optional[Sequence[int]] = None,
@@ -397,21 +379,17 @@ def show_grid(
         grid_height = int(np.abs(np.subtract(*(ax.get_ylim()))) / patch_height)
 
     # Define grid
-    ax.xaxis.set_major_locator(
-        matplotlib.ticker.MultipleLocator(patch_width)
-    )
-    ax.yaxis.set_major_locator(
-        matplotlib.ticker.MultipleLocator(patch_height)
-    )
+    ax.xaxis.set_major_locator(matplotlib.ticker.MultipleLocator(patch_width))
+    ax.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(patch_height))
     ax.grid(**{**grid_defaults, **(grid_params or {})})
-    ax.axis("on") # Axis msut be enabled to view the grid
+    ax.axis("on") # Axis must be enabled to view the grid
 
     # Plot ids
     if patch_ids is not None:
         for row in range(grid_height):
             y_coord = row * patch_height + patch_height / 2
             for column in range(grid_width):
-                x_coord = (column * patch_width + patch_width / 2)
+                x_coord = column * patch_width + patch_width / 2
                 patch_position = column + row * grid_width
                 ax.text(
                     x_coord,

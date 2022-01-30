@@ -1,5 +1,5 @@
 """Functions for accessing the data."""
-from typing import Tuple, Dict, List, Union, Any
+from typing import Dict, List, Union, Any, Sequence
 import os
 from pathlib import Path
 
@@ -58,8 +58,8 @@ def pair_paths(
 
 def tag_patches(
     paired_paths: pd.DataFrame,
-    tile_shape: Tuple[int, int],
-    patch_shape: Tuple[int, int],
+    tile_shape: Sequence[int],
+    patch_shape: Sequence[int],
     validation_size: float = 0.2,
     test_size: float = 0.1,
     shuffle: bool = True,
@@ -69,13 +69,13 @@ def tag_patches(
     """Generate training, validation and test subsets of patch
     indexes from the tile and patch sizes provided.
 
-    This function generates a single set of patches from the tiles
-    provided and then splits them into three subsets following the
-    specified criteria. This ensures that the patches in each set may
-    come from any tile, so their distribution do not skew the results.
-    In no case are the patches generated, only the indexes needed to
-    calculate the windows are created in this step, so both the amount
-    of processing and the size of the output are very light.
+    This function generates a single set of patches from the paired
+    paths provided and then splits them into three subsets following 
+    the specified criteria. This ensures that the patches in each set
+    may come from any tile, so their distribution do not skew the 
+    results. In no case are the patches generated, only the indexes
+    needed to calculate the windows are created in this step, so both
+    the amount of processing and the size of the output are very light.
 
     Args:
         paired_paths: The output of the generate_tile_paths function.

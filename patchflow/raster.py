@@ -6,9 +6,13 @@ import numpy as np
 import rasterio
 
 
+# TODO: Handle nodata
+
+
 RasterSourceType = Union[str, Path, np.ndarray]
 WindowType = Type[rasterio.windows.Window]
 ParamsType = Optional[Dict[str, Any]] # TODO: Take this away
+
 
 def get_proportions(array: np.ndarray) -> Dict[int, float]:
     """Calculate pixel proportion per value in raster.
