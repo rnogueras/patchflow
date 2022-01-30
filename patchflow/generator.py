@@ -369,11 +369,11 @@ class PatchFlowGenerator(keras.utils.Sequence):
         imagery_kwargs: Optional[ParamsType] = None,
         labels_kwargs: Optional[ParamsType] = None,
     ) -> plt.Axes:
-        """Plot some patches from a batch and show them in a matrix.
+        """Plot set of patches from the specified or the last called batch.
 
         Args:
             batch_id: Index of the batch to plot. If None, the last batch
-                used is plotted. Defaults to None.
+                called is plotted. Defaults to None.
             matrix_shape: Shape of the plot matrix provided as (width,
                 height). Defaults to (5, 5)
             figsize: Figure size of the plot.
@@ -389,7 +389,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
         if batch_index is not None:
             X_batch, Y_batch = self[batch_index]
         else:
-            X_batch, Y_batch = next(self)
+            X_batch, Y_batch = self.load_current_batch()
 
         matrix_width, matrix_height = matrix_shape
 
