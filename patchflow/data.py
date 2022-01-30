@@ -168,8 +168,9 @@ def read_source(
             return src.read(bands, window=window)
 
     elif isinstance(source, np.ndarray):
+        
         if window is not None:
-            
+
             if len(source.shape) == 2:
                 source = np.expand_dims(source, axis=0)
 

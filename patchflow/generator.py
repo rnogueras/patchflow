@@ -320,7 +320,6 @@ class PatchFlowGenerator(keras.utils.Sequence):
                     shape=(len(self.bands), *self.patch_shape),
                     dtype=np.uint8,
                 )
-
         elif labels_shape != imagery_shape != self.patch_shape:
             labels = np.full(
                 shape=(1, *self.patch_shape),
@@ -372,10 +371,14 @@ class PatchFlowGenerator(keras.utils.Sequence):
                 used is plotted. Defaults to None.
             matrix_shape: Shape of the plot matrix provided as (width,
                 height). Defaults to (5, 5)
+            figsize: Figure size of the plot.
             imagery_kwargs: These will be passed to the plot_imagery
                 function.
             labels_kwargs: These will be passed to the plot_labels
                 function.
+                
+        Returns:
+            Axes with plot.
         """
 
         if batch_index is not None:
@@ -414,12 +417,15 @@ class PatchFlowGenerator(keras.utils.Sequence):
             tile_id: Number that identifies the tile to be plotted.
             plot_labels: Whether to plot the labels together with the
                 imagery. Defaults to True.
-            figure_size: Width and height of the figure in inches.
+            figsize: Width and height of the figure in inches.
                 Defaults to (10, 8).
             imagery_kwargs: These will be passed to the plot_imagery
                 function.
             labels_kwargs: These will be passed to the plot_labels
                 function.
+
+        Returns:
+            Axes with plot.
         """
 
         sorted_patch_ids = np.arange(len(self.patch_ids))
@@ -465,7 +471,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
                 function.
 
         Returns:
-            plt.Axes: [description]
+            Axes with plot.
         """
         if ax is None:
             ax = plt.gca()
