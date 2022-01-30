@@ -12,6 +12,7 @@ import rasterio.plot
 from patchflow.raster import (
     RasterSourceType,
     WindowType,
+    ParamsType,
     get_proportions,
     rescale,
 )
@@ -137,7 +138,7 @@ def show_labels(
     label_values = np.unique(labels)
     cmap_index = label_values / (len(label_values) - 1)
 
-    if len(transparent):
+    if transparent:
         # set alpha of values in transparent list to 0
         cmap_array = kwargs["cmap"](cmap_index)
         cmap_array[np.isin(label_values, transparent), -1] = 0
@@ -347,3 +348,76 @@ def describe(
 
     plt.tight_layout()
     plt.show()
+
+
+def show_grid(
+    patch_shape: Sequence[int],
+    grid_shape: Optional[Sequence[int]] = None,
+    patch_ids: Optional[Sequence[int]] = None,
+    grid_params: ParamsType = None,
+    text_params: ParamsType = None,
+    ax: Optional[plt.Axes] = None,
+) -> plt.Axes:
+    """Add grid and (if provided) patch ids to plot.
+
+    Args:
+        patch_shape: The patch shape in pixels. E.g.: (128, 128)
+        grid_shape: The grid shape in patches. E.g.: (10, 10). If not
+            provided, the grid shape will be calculated from the ax.
+            Defaults to None.
+        patch_ids: Sequence of numbers corresponding to the patch
+            ids present in the tile. If not provided, no ids will
+            be showed. Defaults to None.
+        grid_params: Dictionary (argument: value) to be passed to the
+            matplotlib`s grid function. Defaults to None. See full list at:
+            https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.grid.html
+        text_params: Dictionary (argument: value) to be passed to the
+            matplotlib`s grid function. Defaults to None. See full list at:
+            https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.text.html
+        ax: Axes to plot on. Otherwise, use current axes.
+
+    Returns:
+        Axes with plot.
+    """
+
+    grid_defaults = dict(color="white", linewidth=2)
+    text_defaults = dict(
+        color="white", size="x-large", ha="center", va="center"
+    )
+
+    if ax is None:
+        ax = plt.gca()
+
+    patch_width, patch_height = patch_shape
+
+    if grid_shape is not None:
+        grid_width, grid_height = grid_shape
+    else:
+        grid_width = int(np.abs(np.subtract(*(ax.get_xlim())) / patch_width))
+        grid_height = int(np.abs(np.subtract(*(ax.get_ylim()))) / patch_height)
+
+    # Define grid
+    ax.xaxis.set_major_locator(
+        matplotlib.ticker.MultipleLocator(patch_width)
+    )
+    ax.yaxis.set_major_locator(
+        matplotlib.ticker.MultipleLocator(patch_height)
+    )
+    ax.grid(**{**grid_defaults, **(grid_params or {})})
+    ax.axis("on") # Axis msut be enabled to view the grid
+
+    # Plot ids
+    if patch_ids is not None:
+        for row in range(grid_height):
+            y_coord = row * patch_height + patch_height / 2
+            for column in range(grid_width):
+                x_coord = (column * patch_width + patch_width / 2)
+                patch_position = column + row * grid_width
+                ax.text(
+                    x_coord,
+                    y_coord,
+                    f"{patch_ids[patch_position]}",
+                    **{**text_defaults, **(text_params or {})},
+                )
+
+    return ax

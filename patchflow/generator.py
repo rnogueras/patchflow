@@ -12,7 +12,7 @@ import skimage.transform
 from tensorflow import keras
 
 from patchflow.raster import get_proportions, pad_raster
-from patchflow.plot import show_imagery, show_labels
+from patchflow.plot import show_imagery, show_labels, show_grid
 
 
 BatchType = Tuple[np.ndarray, np.ndarray]
@@ -415,10 +415,6 @@ class PatchFlowGenerator(keras.utils.Sequence):
         self,
         tile_id: int,
         plot_labels: bool = True,
-        patch_id_color: str = "white",
-        patch_id_size: str = "x-large",
-        grid_color: str = "white",
-        linewidth: int = 3,
         figsize: Tuple[int, int] = (10, 10),
         imagery_kwargs: Optional[Dict[str, Any]] = None,
         labels_kwargs: Optional[Dict[str, Any]] = None,
@@ -472,31 +468,9 @@ class PatchFlowGenerator(keras.utils.Sequence):
         if plot_labels:
             show_labels(labels, ax=ax, **labels_kwargs)
 
-        # Define grid
-        ax.xaxis.set_major_locator(
-            matplotlib.ticker.MultipleLocator(base=self.patch_shape[0])
+        show_grid(
+            patch_shape=self.patch_shape,
+            grid_shape=self.grid_shape,
+            patch_ids=tile_patch_ids,
+            ax=ax
         )
-        ax.yaxis.set_major_locator(
-            matplotlib.ticker.MultipleLocator(base=self.patch_shape[1])
-        )
-        ax.grid(color=grid_color, linewidth=linewidth)
-
-        # Plot ids
-        for row in range(self.grid_shape[1]):
-            y_coord = row * self.patch_shape[1] + self.patch_shape[1] / 2
-            for column in range(self.grid_shape[0]):
-                x_coord = (
-                    column * self.patch_shape[0] + self.patch_shape[0] / 2
-                )
-                patch_position = column + row * self.grid_shape[0]
-                ax.text(
-                    x_coord,
-                    y_coord,
-                    f"{tile_patch_ids[patch_position]}",
-                    color=patch_id_color,
-                    size=patch_id_size,
-                    ha="center",
-                    va="center",
-                )
-        
-        plt.show()
