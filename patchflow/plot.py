@@ -1,6 +1,5 @@
 """Functions for plotting imagery and labels."""
 from typing import Optional, Sequence, Any, Type
-from pathlib import Path
 import warnings
 
 import numpy as np
@@ -9,6 +8,7 @@ from matplotlib import pyplot as plt
 import rasterio
 import rasterio.plot
 
+from patchflow.data import read_source
 from patchflow.raster import (
     RasterSourceType,
     WindowType,
@@ -37,7 +37,7 @@ STANDARD_CMAP = matplotlib.colors.ListedColormap(list(COLOR_CODES.values()))
 
 
 def show_imagery(
-    imagery: RasterSourceType,
+    source: RasterSourceType,
     window: Optional[WindowType] = None,
     bands: Sequence[int] = (1, 2, 3),
     raster_shape: bool = True,
@@ -48,9 +48,7 @@ def show_imagery(
     """Plot pixel value array.
 
     Args:
-        imagery: Imagery raster to plot. If a string or a Path is
-            provided, it will be interpreted as a path to the file
-            and open using rasterio.
+        source: Path or array to read the data from.
         window: A rasterio window to plot only a subset of the raster.
             Ignored if the raster comes as array.
         bands: Define which bands will be displayed and in which order.
@@ -69,17 +67,15 @@ def show_imagery(
         Axes with plot.
     """
 
-    if isinstance(imagery, (str, Path)):
-        with rasterio.open(imagery) as src:
-            imagery = src.read(bands, window=window)
+    raster = read_source(source=source, window=window, bands=bands)
 
     if ax is None:
         ax = plt.gca()
 
     if raster_shape:
-        imagery = rasterio.plot.reshape_as_image(imagery)
+        raster = rasterio.plot.reshape_as_image(raster)
 
-    ax.imshow(imagery, **kwargs)
+    ax.imshow(raster, **kwargs)
 
     if not show_axis:
         ax.axis("off")
@@ -88,7 +84,7 @@ def show_imagery(
 
 
 def show_labels(
-    labels: RasterSourceType,
+    source: RasterSourceType,
     window: Optional[WindowType] = None,
     transparent: Sequence[int] = (0,),
     legend: bool = True,
@@ -100,9 +96,7 @@ def show_labels(
     """Plot pixel label array.
 
     Args:
-        labels: Discrete raster to plot. If string or pathlib. Path object,
-            it will be interpreted as a path and open using rasterio. If
-            array, it is expected to have two dimensions.
+        source: Path or array to read the data from.
         window: A rasterio window to plot only a subset of the raster. Ignored
             if the raster comes as array.
         transparent: List of label values to make transparent. The alpha
@@ -125,13 +119,9 @@ def show_labels(
     defaults = dict(interpolation="nearest", alpha=0.7, cmap=STANDARD_CMAP)
     kwargs = {**defaults, **kwargs}
 
-    if isinstance(labels, (str, Path)):
-        with rasterio.open(labels) as src:
-            labels = src.read(1, window=window)
+    raster = read_source(source=source, window=window).squeeze()
 
-    labels = labels.squeeze()
-
-    label_values = np.unique(labels)
+    label_values = np.unique(raster)
     cmap_index = label_values / (len(label_values) - 1)
 
     if transparent:
@@ -143,7 +133,7 @@ def show_labels(
     if ax is None:
         ax = plt.gca()
 
-    ax.imshow(labels, **kwargs)
+    ax.imshow(raster, **kwargs)
 
     if legend:
 
@@ -169,7 +159,7 @@ def show_labels(
 
 
 def show_histogram(
-    imagery: RasterSourceType,
+    source: RasterSourceType,
     window: Optional[WindowType] = None,
     bands: Sequence[int] = (1, 2, 3),
     show_axis: bool = True,
@@ -179,9 +169,7 @@ def show_histogram(
     """Plot histogram of the raster bands.
 
     Args:
-        imagery: Imagery raster to plot. If a string or a Path is
-            provided, it will be interpreted as a path to the file
-            and open using rasterio.
+        source: Path or array to read the data from.
         window: A rasterio window to
             plot only a subset of the raster. Ignored if the raster
             comes as array. Defaults to None.
@@ -208,17 +196,14 @@ def show_histogram(
         fill=True,
     )
 
-    if isinstance(imagery, (str, Path)):
-        with rasterio.open(imagery) as src:
-            imagery = src.read(bands, window=window)
-
-    value_range = np.nanmin(imagery), np.nanmax(imagery)
+    raster = read_source(source=source, window=window, bands=bands)
+    value_range = np.nanmin(raster), np.nanmax(raster)
 
     if ax is None:
         ax = plt.gca()
 
     ax.hist(
-        x=imagery.reshape(imagery.shape[0], -1).T,
+        x=raster.reshape(raster.shape[0], -1).T,
         range=value_range,
         **{**defaults, **kwargs},
     )
@@ -230,7 +215,7 @@ def show_histogram(
 
 
 def show_proportions(
-    labels: RasterSourceType,
+    source: RasterSourceType,
     window: Optional[WindowType] = None,
     ax: Optional[plt.Axes] = None,
     show_axis: bool = True,
@@ -239,8 +224,7 @@ def show_proportions(
     """Plot proportion of each class present in a labels raster.
 
     Args:
-        labels: Discrete raster to plot. If string or Path object,
-            it will be interpreted as a path and open using rasterio.
+        source: Path or array to read the data from.
         window: A rasterio window to plot only a subset of the raster.
             Ignored if the raster comes as array.
         show_axis: If true, the axis of the image will be displayed.
@@ -254,11 +238,9 @@ def show_proportions(
         Axes with plot.
     """
 
-    if isinstance(labels, (str, Path)):
-        with rasterio.open(labels) as src:
-            labels = src.read(1, window=window)
+    raster = read_source(source=source, window=window).squeeze()
 
-    class_proportions = get_proportions(labels)
+    class_proportions = get_proportions(raster)
     label_values = [str(key) for key in class_proportions.keys()]
     proportions = list(class_proportions.values())
 
@@ -279,8 +261,8 @@ def show_proportions(
 
 
 def describe(
-    imagery: RasterSourceType,
-    labels: RasterSourceType,
+    imagery_source: RasterSourceType,
+    label_source: RasterSourceType,
     window: Optional[WindowType] = None,
     bands: Sequence[int] = (1, 2, 3),
     figure_size: Sequence[int] = (10, 8),
@@ -289,11 +271,8 @@ def describe(
     and proportions together in a grid.
 
     Args:
-        imagery: Imagery raster to plot. If a string or a Path is
-            provided, it will be interpreted as a path to the file
-            and open using rasterio.
-        labels: Categorical raster to plot. If string or Path object,
-            it will be interpreted as a path and open using rasterio.
+        imagery_source: Path or array to read the data from.
+        label_source: Path or array to read the data from.
         window: A rasterio window to plot only a subset of the raster.
             Ignored for rasters that come as array. Defaults to None.
         bands: Define which bands will be displayed and in which order.
@@ -305,28 +284,25 @@ def describe(
     Returns:
         None
     """
-
-    if isinstance(imagery, (str, Path)):
-        with rasterio.open(imagery) as src:
-            imagery = src.read(bands, window=window)
-
-    if isinstance(labels, (str, Path)):
-        with rasterio.open(labels) as src:
-            labels = src.read(1, window=window)
+    
+    imagery_raster = read_source(
+        source=imagery_source, window=window, bands=bands
+    )
+    label_raster = read_source(source=label_source, window=window)
 
     plt.figure(figsize=figure_size)
 
     ax_1 = plt.subplot2grid((4, 4), (0, 0), colspan=2, rowspan=3)
-    show_imagery(imagery=imagery, bands=bands, ax=ax_1)
+    show_imagery(source=imagery_raster, bands=bands, ax=ax_1)
 
     ax_2 = plt.subplot2grid((4, 4), (0, 2), colspan=2, rowspan=3)
-    show_labels(labels=labels, ax=ax_2, alpha=1, legend=False, transparent=[])
+    show_labels(source=label_raster, ax=ax_2, alpha=1, legend=False, transparent=[])
 
     ax_3 = plt.subplot2grid((4, 4), (3, 0), colspan=2)
-    show_histogram(imagery=imagery, ax=ax_3)
+    show_histogram(source=imagery_raster, ax=ax_3)
 
     ax_4 = plt.subplot2grid((4, 4), (3, 2), colspan=2)
-    show_proportions(labels=labels, ax=ax_4)
+    show_proportions(source=label_raster, ax=ax_4)
 
     plt.tight_layout()
     plt.show()
@@ -387,13 +363,13 @@ def add_grid(
     # Plot ids
     if patch_ids is not None:
         for row in range(grid_height):
-            y_coord = row * patch_height + patch_height / 2
+            coordinate_y = row * patch_height + patch_height / 2
             for column in range(grid_width):
-                x_coord = column * patch_width + patch_width / 2
+                coordinate_x = column * patch_width + patch_width / 2
                 patch_position = column + row * grid_width
                 ax.text(
-                    x_coord,
-                    y_coord,
+                    coordinate_x,
+                    coordinate_y,
                     f"{patch_ids[patch_position]}",
                     **{**text_defaults, **(text_params or {})},
                 )
