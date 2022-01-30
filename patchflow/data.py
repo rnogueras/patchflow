@@ -98,7 +98,7 @@ def tag_patches(
     Returns:
         Three dictionaries each of which contains the paired_paths,
         tile_shape, patche_shape and patch_indexes of a different
-        subset, so that they can be easily passed to a instances of
+        subset, so that they can be easily passed to an instance of
         the PatchFlowGenerator using the ** operator.
 
     """

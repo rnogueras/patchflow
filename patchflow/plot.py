@@ -13,6 +13,7 @@ from patchflow.raster import (
     RasterSourceType,
     WindowType,
     get_proportions,
+    rescale,
 )
 
 # TODO: Catch the warning isolatedly
@@ -69,7 +70,7 @@ def show_imagery(
         with rasterio.open(imagery) as src:
             imagery = src.read(bands, window=window)
 
-    if not ax:
+    if ax is None:
         ax = plt.gca()
 
     if raster_shape:
@@ -86,7 +87,7 @@ def show_imagery(
 def show_labels(
     labels: RasterSourceType,
     window: Optional[WindowType] = None,
-    transparent: Sequence[int] = (0, ),
+    transparent: Sequence[int] = (0,),
     legend: bool = True,
     label_names: Optional[Sequence[str]] = None,
     show_axis: bool = False,
@@ -127,8 +128,6 @@ def show_labels(
     if "alpha" not in kwargs:
         kwargs["alpha"] = 0.7
 
-    # TODO: Add transparent default
-
     if isinstance(labels, (str, Path)):
         with rasterio.open(labels) as src:
             labels = src.read(1, window=window)
@@ -144,7 +143,7 @@ def show_labels(
         cmap_array[np.isin(label_values, transparent), -1] = 0
         kwargs["cmap"] = matplotlib.colors.ListedColormap(cmap_array)
 
-    if not ax:
+    if ax is None:
         ax = plt.gca()
 
     ax.imshow(labels, **kwargs)
@@ -155,9 +154,7 @@ def show_labels(
         valid_color_codes = kwargs["cmap"](cmap_valid_indexes)
 
         categories = [
-            matplotlib.patches.Patch(
-                [0], [0], color=color_code, alpha=kwargs["alpha"]
-            )
+            matplotlib.patches.Patch([0], [0], color=color_code, alpha=kwargs["alpha"])
             for color_code in valid_color_codes
         ]
 
@@ -228,7 +225,7 @@ def show_histogram(
     # TODO: Handle nodata here, convert it to nans
     value_range = np.nanmin(imagery), np.nanmax(imagery)
 
-    if not ax:
+    if ax is None:
         ax = plt.gca()
 
     ax.hist(
@@ -279,11 +276,10 @@ def show_proportions(
     class_proportions = get_proportions(labels)
     label_values = list(class_proportions.keys())
     proportions = list(class_proportions.values())
-    # TODO: put rescale function in raster module
-    rescale = lambda x: (x - np.min(x)) / (np.max(x) - np.min(x))
+
     cmap = cmap.reversed()
 
-    if not ax:
+    if ax is None:
         ax = plt.gca()
 
     ax.bar(

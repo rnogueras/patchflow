@@ -1,6 +1,7 @@
 """PatchFlow class."""
 from typing import Optional, Union, Sequence, Tuple, Generator, Dict, Any
 import math
+from copy import deepcopy
 
 import numpy as np
 import pandas as pd
@@ -111,7 +112,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
         self.filler_label = filler_label
         self.padding_method = padding_method
         if output_shape is None:
-            output_shape = self.patch_shape
+            output_shape = deepcopy(self.patch_shape)
         self.output_shape = output_shape
         self.resizing_method = resizing_method
 
@@ -465,6 +466,12 @@ class PatchFlowGenerator(keras.utils.Sequence):
         # Remove whitespace around the image
         fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
 
+        # Plot imagery and labels
+        imagery, labels = self.paired_paths.iloc[tile_id]
+        show_imagery(imagery, ax=ax, **imagery_kwargs)
+        if plot_labels:
+            show_labels(labels, ax=ax, **labels_kwargs)
+
         # Define grid
         ax.xaxis.set_major_locator(
             matplotlib.ticker.MultipleLocator(base=self.patch_shape[0])
@@ -473,12 +480,6 @@ class PatchFlowGenerator(keras.utils.Sequence):
             matplotlib.ticker.MultipleLocator(base=self.patch_shape[1])
         )
         ax.grid(color=grid_color, linewidth=linewidth)
-
-        # Plot imagery and labels
-        paths = self.paired_paths.iloc[tile_id]
-        show_imagery(paths["imagery_path"], ax=ax, **imagery_kwargs)
-        if plot_labels:
-            show_labels(paths["labels_path"], ax=ax, **labels_kwargs)
 
         # Plot ids
         for row in range(self.grid_shape[1]):
@@ -497,3 +498,5 @@ class PatchFlowGenerator(keras.utils.Sequence):
                     ha="center",
                     va="center",
                 )
+        
+        plt.show()
