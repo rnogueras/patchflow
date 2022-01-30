@@ -1,22 +1,23 @@
 """PatchFlow class."""
 from typing import Optional, Union, Sequence, Tuple, Generator, Dict, Any
 import math
+from copy import deepcopy
 
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
-import matplotlib.ticker
 import rasterio
 import skimage.transform
 from tensorflow import keras
 
-from patchflow.raster import get_proportions, pad_raster
-from patchflow.plot import show_imagery, show_labels
+from patchflow.raster import ParamsType, get_proportions, pad_raster
+from patchflow.plot import show_imagery, show_labels, add_grid
 
 
 BatchType = Tuple[np.ndarray, np.ndarray]
 
 
+# TODO: Handle nodata
 class PatchFlowGenerator(keras.utils.Sequence):
     """Patch generator to feed Keras segmentation models."""
 
@@ -111,7 +112,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
         self.filler_label = filler_label
         self.padding_method = padding_method
         if output_shape is None:
-            output_shape = self.patch_shape
+            output_shape = deepcopy(self.patch_shape)
         self.output_shape = output_shape
         self.resizing_method = resizing_method
 
@@ -259,9 +260,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
         """Load and preprocess the current batch."""
 
         if self.current_batch is None:
-            raise AttributeError(
-                "No batch has been initialized yet."
-            )
+            raise AttributeError("No batch has been initialized yet.")
 
         Y = np.empty([self.batch_size, *self.output_shape, 1], dtype=np.uint8)
         X = np.empty([self.batch_size, *self.output_shape, len(self.bands)])
@@ -321,7 +320,6 @@ class PatchFlowGenerator(keras.utils.Sequence):
                     shape=(len(self.bands), *self.patch_shape),
                     dtype=np.uint8,
                 )
-
         elif labels_shape != imagery_shape != self.patch_shape:
             labels = np.full(
                 shape=(1, *self.patch_shape),
@@ -362,10 +360,10 @@ class PatchFlowGenerator(keras.utils.Sequence):
         self,
         batch_index: Optional[int] = None,
         matrix_shape: Tuple[int, int] = (5, 5),
-        figure_size: Tuple[int, int] = (14, 14),
+        figsize: Tuple[int, int] = (14, 14),
         imagery_kwargs: Optional[Dict[str, Any]] = None,
         labels_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> None:
+    ) -> plt.Axes:
         """Plot some patches from a batch and show them in a matrix.
 
         Args:
@@ -373,23 +371,15 @@ class PatchFlowGenerator(keras.utils.Sequence):
                 used is plotted. Defaults to None.
             matrix_shape: Shape of the plot matrix provided as (width,
                 height). Defaults to (5, 5)
+            figsize: Figure size of the plot.
             imagery_kwargs: These will be passed to the plot_imagery
                 function.
             labels_kwargs: These will be passed to the plot_labels
                 function.
+                
+        Returns:
+            Axes with plot.
         """
-
-        if imagery_kwargs is None:
-            imagery_kwargs = {}
-
-        if labels_kwargs is None:
-            labels_kwargs = {}
-
-        if "legend" not in labels_kwargs:
-            labels_kwargs["legend"] = False
-
-        if "ignore" not in labels_kwargs:
-            labels_kwargs["transparent"] = [0]
 
         if batch_index is not None:
             X_batch, Y_batch = self[batch_index]
@@ -398,62 +388,45 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
         matrix_width, matrix_height = matrix_shape
 
-        plt.figure(figsize=figure_size)
+        _, ax = plt.subplots(figsize=figsize)
 
         for index in range(matrix_height * matrix_width):
             ax = plt.subplot(matrix_height, matrix_width, index + 1)
             ax.set_title(self.current_batch[index])
             show_imagery(
-                X_batch[index], raster_shape=False, ax=ax, **imagery_kwargs
+                X_batch[index],
+                raster_shape=False,
+                ax=ax,
+                **(imagery_kwargs or {}),
             )
-            show_labels(Y_batch[index], ax=ax, **labels_kwargs)
+            show_labels(Y_batch[index], ax=ax, **(labels_kwargs or {}))
 
-        plt.show()
+        return ax
 
     def plot_grid(
         self,
         tile_id: int,
         plot_labels: bool = True,
-        patch_id_color: str = "white",
-        patch_id_size: str = "x-large",
-        grid_color: str = "white",
-        linewidth: int = 3,
         figsize: Tuple[int, int] = (10, 10),
         imagery_kwargs: Optional[Dict[str, Any]] = None,
         labels_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> None:
+    ) -> plt.Axes:
         """Plot tile and its grid of patches.
 
         Args:
             tile_id: Number that identifies the tile to be plotted.
             plot_labels: Whether to plot the labels together with the
                 imagery. Defaults to True.
-            patch_id_color: Color to plot the patch ids. Default: white.
-            patch_id_size: Size of the patch id font. Default: x-large.
-            grid_color: Color of the grid. Default: white.
-            linewidth: Line width of the grid. Defaults to 3.
-            figure_size: Width and height of the figure in inches.
+            figsize: Width and height of the figure in inches.
                 Defaults to (10, 8).
             imagery_kwargs: These will be passed to the plot_imagery
                 function.
             labels_kwargs: These will be passed to the plot_labels
                 function.
+
+        Returns:
+            Axes with plot.
         """
-
-        if imagery_kwargs is None:
-            imagery_kwargs = {}
-
-        if labels_kwargs is None:
-            labels_kwargs = {}
-
-        if "show_axis" not in imagery_kwargs:
-            imagery_kwargs["show_axis"] = True
-
-        if "show_axis" not in labels_kwargs:
-            labels_kwargs["show_axis"] = True
-
-        if "transparent" not in labels_kwargs:
-            labels_kwargs["transparent"] = [0]
 
         sorted_patch_ids = np.arange(len(self.patch_ids))
         tile_patch_ids = sorted_patch_ids[
@@ -465,35 +438,57 @@ class PatchFlowGenerator(keras.utils.Sequence):
         # Remove whitespace around the image
         fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
 
-        # Define grid
-        ax.xaxis.set_major_locator(
-            matplotlib.ticker.MultipleLocator(base=self.patch_shape[0])
-        )
-        ax.yaxis.set_major_locator(
-            matplotlib.ticker.MultipleLocator(base=self.patch_shape[1])
-        )
-        ax.grid(color=grid_color, linewidth=linewidth)
-
         # Plot imagery and labels
-        paths = self.paired_paths.iloc[tile_id]
-        show_imagery(paths["imagery_path"], ax=ax, **imagery_kwargs)
+        imagery, labels = self.paired_paths.iloc[tile_id]
+        show_imagery(imagery, ax=ax, **(imagery_kwargs or {}))
         if plot_labels:
-            show_labels(paths["labels_path"], ax=ax, **labels_kwargs)
+            show_labels(labels, ax=ax, **(labels_kwargs or {}))
 
-        # Plot ids
-        for row in range(self.grid_shape[1]):
-            y_coord = row * self.patch_shape[1] + self.patch_shape[1] / 2
-            for column in range(self.grid_shape[0]):
-                x_coord = (
-                    column * self.patch_shape[0] + self.patch_shape[0] / 2
-                )
-                patch_position = column + row * self.grid_shape[0]
-                ax.text(
-                    x_coord,
-                    y_coord,
-                    f"{tile_patch_ids[patch_position]}",
-                    color=patch_id_color,
-                    size=patch_id_size,
-                    ha="center",
-                    va="center",
-                )
+        add_grid(
+            patch_shape=self.patch_shape,
+            grid_shape=self.grid_shape,
+            patch_ids=tile_patch_ids,
+            ax=ax,
+        )
+
+        return ax
+
+    def plot_patch(
+        self,
+        patch_id: int,
+        ax: plt.Axes = None,
+        imagery_params: Optional[ParamsType] = None,
+        label_params: Optional[ParamsType] = None,
+    ) -> plt.Axes:
+        """Plot patch.
+
+        Args:
+            patch_id: Number that identifies the patch.
+            ax: Axes to plot on. Otherwise, use current axes.
+            imagery_params: These will be passed to the plot_imagery
+                function.
+            label_params: These will be passed to the plot_labels
+                function.
+
+        Returns:
+            Axes with plot.
+        """
+        if ax is None:
+            ax = plt.gca()
+
+        patch_meta = self.locate_patch(patch_id)
+        
+        show_imagery(
+            patch_meta["imagery_path"],
+            window=patch_meta["window"],
+            ax=ax,
+            **(imagery_params or {}),
+        )
+        show_labels(
+            patch_meta["labels_path"],
+            window=patch_meta["window"],
+            ax=ax,
+            **(label_params or {}),
+        )
+
+        return ax

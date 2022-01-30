@@ -1,10 +1,13 @@
 """Functions for accessing the data."""
-from typing import Tuple, Dict, List, Union, Any
+from typing import Dict, List, Union, Any, Sequence, Optional
 import os
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import rasterio
+
+from patchflow.raster import RasterSourceType, WindowType
 
 
 def pair_paths(
@@ -28,7 +31,6 @@ def pair_paths(
 
     Returns:
         A dataframe containing the found paired paths.
-
     """
 
     if isinstance(directory, str):
@@ -58,8 +60,8 @@ def pair_paths(
 
 def tag_patches(
     paired_paths: pd.DataFrame,
-    tile_shape: Tuple[int, int],
-    patch_shape: Tuple[int, int],
+    tile_shape: Sequence[int],
+    patch_shape: Sequence[int],
     validation_size: float = 0.2,
     test_size: float = 0.1,
     shuffle: bool = True,
@@ -69,13 +71,13 @@ def tag_patches(
     """Generate training, validation and test subsets of patch
     indexes from the tile and patch sizes provided.
 
-    This function generates a single set of patches from the tiles
-    provided and then splits them into three subsets following the
-    specified criteria. This ensures that the patches in each set may
-    come from any tile, so their distribution do not skew the results.
-    In no case are the patches generated, only the indexes needed to
-    calculate the windows are created in this step, so both the amount
-    of processing and the size of the output are very light.
+    This function generates a single set of patches from the paired
+    paths provided and then splits them into three subsets following 
+    the specified criteria. This ensures that the patches in each set
+    may come from any tile, so their distribution do not skew the 
+    results. In no case are the patches generated, only the indexes
+    needed to calculate the windows are created in this step, so both
+    the amount of processing and the size of the output are very light.
 
     Args:
         paired_paths: The output of the generate_tile_paths function.
@@ -98,9 +100,8 @@ def tag_patches(
     Returns:
         Three dictionaries each of which contains the paired_paths,
         tile_shape, patche_shape and patch_indexes of a different
-        subset, so that they can be easily passed to a instances of
+        subset, so that they can be easily passed to an instance of
         the PatchFlowGenerator using the ** operator.
-
     """
 
     grid_size = np.prod(np.array(tile_shape) // np.array(patch_shape))
@@ -142,3 +143,46 @@ def tag_patches(
             test_ids,
         ]
     ]
+
+
+def read_source(
+    source: RasterSourceType,
+    window: Optional[WindowType] = None,
+    bands: Sequence[int] = (1, )
+) -> np.ndarray:
+    """Read raster data source.
+
+    Args:
+        source: Path or array to read the data from.
+        window: A rasterio Window to plot only a subset of the raster.
+        bands: Defines which bands will be displayed and in which order.
+            Positions in the list correspond to red, green and blue
+            respectively. Default: read first band only.
+
+    Returns:
+        Raster.
+    """
+    
+    if isinstance(source, (str, Path)):
+        with rasterio.open(source) as src:
+            return src.read(bands, window=window)
+
+    elif isinstance(source, np.ndarray):
+        
+        if window is not None:
+
+            if len(source.shape) == 2:
+                source = np.expand_dims(source, axis=0)
+
+            source = source[
+                :,
+                window.col_off : window.col_off + window.width,
+                window.row_off : window.row_off + window.height
+            ]
+
+        return source
+    
+    raise TypeError(
+        f"The source type {type(source)} is incorrect."
+        " Only string, Path or np.ndarray types are allowed."
+    )

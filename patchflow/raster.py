@@ -1,32 +1,64 @@
 """Functions for working with rasters."""
-from typing import Union, Type, Tuple, Any, Dict
+from typing import Union, Type, Tuple, Any, Dict, Optional
 from pathlib import Path
 
-import rasterio
 import numpy as np
+import rasterio
+
+
+# TODO: Handle nodata
 
 
 RasterSourceType = Union[str, Path, np.ndarray]
 WindowType = Type[rasterio.windows.Window]
+ParamsType = Dict[str, Any] # TODO: Take this away
 
 
-def get_proportions(raster: np.ndarray) -> Dict[int, float]:
+def get_proportions(array: np.ndarray) -> Dict[int, float]:
     """Calculate pixel proportion per value in raster.
 
     Args:
-        raster: Discrete array.
+        array: Discrete array.
 
     Returns:
         Dictionary containing each value present in the input array
         and its proportion.
     """
 
-    values, counts = np.unique(raster, return_counts=True)
-    proportions = counts / raster.size
+    values, counts = np.unique(array, return_counts=True)
+    proportions = counts / array.size
 
-    return {
-        value: proportion for value, proportion in zip(values, proportions)
-    }
+    return dict(zip(values, proportions))
+
+
+def rescale(
+    array: np.ndarray, percentiles: Tuple[int, int] = (0, 100)
+) -> np.ndarray:
+    """Rescale array.
+
+    Args:
+        array: Array to rescale.
+        percentiles: lower and upper percentiles to impose limits
+            on the range of values to be taken into account for
+            rescaling to (0, 100).
+
+    Returns:
+        Rescaled array.
+    """
+    low_percentile, top_percentile = percentiles
+
+    minimum = np.nanpercentile(array, low_percentile)
+    maximum = np.nanpercentile(array, top_percentile)
+
+    nominator = array - minimum
+    denominator = maximum - minimum
+
+    return np.divide(
+        nominator,
+        denominator,
+        out=np.zeros_like(nominator),
+        where=denominator != 0,
+    )
 
 
 def pad_raster(
@@ -37,7 +69,7 @@ def pad_raster(
     """Pad array to match the out_shape.
 
     Args:
-        raster: Two or three dimensional array shaped as raster.
+        raster: Two or three dimensional array shaped as a raster.
         out_shape: Shape (width, height) to which the input raster will
             be padded.
         kwargs: These will be passsed to the numpy.pad function.
@@ -45,7 +77,7 @@ def pad_raster(
             https://numpy.org/doc/stable/reference/generated/numpy.pad.html
 
     Returns:
-        padded array
+        Padded array
     """
 
     if not 1 < len(raster.shape) < 4:
