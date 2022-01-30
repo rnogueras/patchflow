@@ -278,7 +278,7 @@ def describe(
     Returns:
         None
     """
-    
+
     imagery_raster = read_source(
         source=imagery_source, window=window, bands=bands
     )
@@ -354,7 +354,7 @@ def add_grid(
     ax.xaxis.set_major_locator(matplotlib.ticker.MultipleLocator(patch_width))
     ax.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(patch_height))
     ax.grid(**{**grid_defaults, **(grid_params or {})})
-    ax.axis("on") # Axis must be enabled to view the grid
+    ax.axis("on")  # Axis must be enabled to view the grid
 
     # Plot ids
     if patch_ids is not None:

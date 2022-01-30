@@ -72,12 +72,10 @@ def tag_patches(
     indexes from the tile and patch sizes provided.
 
     This function generates a single set of patches from the paired
-    paths provided and then splits them into three subsets following 
+    paths provided and then splits them into three subsets following
     the specified criteria. This ensures that the patches in each set
-    may come from any tile, so their distribution do not skew the 
-    results. In no case are the patches generated, only the indexes
-    needed to calculate the windows are created in this step, so both
-    the amount of processing and the size of the output are very light.
+    may come from any tile, so their distribution do not skew the
+    results.
 
     Args:
         paired_paths: The output of the generate_tile_paths function.
@@ -148,7 +146,7 @@ def tag_patches(
 def read_source(
     source: RasterSourceType,
     window: Optional[WindowType] = None,
-    bands: Sequence[int] = (1, )
+    bands: Sequence[int] = (1,),
 ) -> np.ndarray:
     """Read raster data source.
 
@@ -162,26 +160,24 @@ def read_source(
     Returns:
         Raster.
     """
-    
+
     if isinstance(source, (str, Path)):
         with rasterio.open(source) as src:
             return src.read(bands, window=window)
 
     elif isinstance(source, np.ndarray):
-        
-        if window is not None:
 
+        if window is not None:
             if len(source.shape) == 2:
                 source = np.expand_dims(source, axis=0)
-
             source = source[
                 :,
                 window.col_off : window.col_off + window.width,
-                window.row_off : window.row_off + window.height
+                window.row_off : window.row_off + window.height,
             ]
 
         return source
-    
+
     raise TypeError(
         f"The source type {type(source)} is incorrect."
         " Only string, Path or np.ndarray types are allowed."

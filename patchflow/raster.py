@@ -1,5 +1,5 @@
 """Functions for working with rasters."""
-from typing import Union, Type, Tuple, Any, Dict, Optional
+from typing import Union, Type, Tuple, Any, Dict
 from pathlib import Path
 
 import numpy as np
@@ -11,7 +11,7 @@ import rasterio
 
 RasterSourceType = Union[str, Path, np.ndarray]
 WindowType = Type[rasterio.windows.Window]
-ParamsType = Dict[str, Any] # TODO: Take this away
+ParamsType = Dict[str, Any]  # TODO: Take this away
 
 
 def get_proportions(array: np.ndarray) -> Dict[int, float]:
