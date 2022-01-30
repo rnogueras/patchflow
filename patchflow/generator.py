@@ -10,7 +10,7 @@ import rasterio
 import skimage.transform
 from tensorflow import keras
 
-from patchflow.raster import get_proportions, pad_raster
+from patchflow.raster import ParamsType, get_proportions, pad_raster
 from patchflow.plot import show_imagery, show_labels, add_grid
 
 
@@ -260,9 +260,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
         """Load and preprocess the current batch."""
 
         if self.current_batch is None:
-            raise AttributeError(
-                "No batch has been initialized yet."
-            )
+            raise AttributeError("No batch has been initialized yet.")
 
         Y = np.empty([self.batch_size, *self.output_shape, 1], dtype=np.uint8)
         X = np.empty([self.batch_size, *self.output_shape, len(self.bands)])
@@ -396,7 +394,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
                 X_batch[index],
                 raster_shape=False,
                 ax=ax,
-                **(imagery_kwargs or {})
+                **(imagery_kwargs or {}),
             )
             show_labels(Y_batch[index], ax=ax, **(labels_kwargs or {}))
 
@@ -444,7 +442,47 @@ class PatchFlowGenerator(keras.utils.Sequence):
             patch_shape=self.patch_shape,
             grid_shape=self.grid_shape,
             patch_ids=tile_patch_ids,
-            ax=ax
+            ax=ax,
+        )
+
+        return ax
+
+    def plot_patch(
+        self,
+        patch_id: int,
+        ax: plt.Axes = None,
+        imagery_params: Optional[ParamsType] = None,
+        label_params: Optional[ParamsType] = None,
+    ) -> plt.Axes:
+        """Plot patch.
+
+        Args:
+            patch_id: Number that identifies the patch.
+            ax: Axes to plot on. Otherwise, use current axes.
+            imagery_params: These will be passed to the plot_imagery
+                function.
+            label_params: These will be passed to the plot_labels
+                function.
+
+        Returns:
+            plt.Axes: [description]
+        """
+        if ax is None:
+            ax = plt.gca()
+
+        patch_meta = self.locate_patch(patch_id)
+        
+        show_imagery(
+            patch_meta["imagery_path"],
+            window=patch_meta["window"],
+            ax=ax,
+            **(imagery_params or {}),
+        )
+        show_labels(
+            patch_meta["labels_path"],
+            window=patch_meta["window"],
+            ax=ax,
+            **(label_params or {}),
         )
 
         return ax

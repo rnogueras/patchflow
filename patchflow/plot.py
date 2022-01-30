@@ -49,8 +49,7 @@ def show_imagery(
 
     Args:
         source: Path or array to read the data from.
-        window: A rasterio window to plot only a subset of the raster.
-            Ignored if the raster comes as array.
+        window: A rasterio Window to plot only a subset of the raster.
         bands: Define which bands will be displayed and in which order.
             Positions in the list correspond to red, green and blue
             respectively. Default: [1, 2, 3].
@@ -97,8 +96,7 @@ def show_labels(
 
     Args:
         source: Path or array to read the data from.
-        window: A rasterio window to plot only a subset of the raster. Ignored
-            if the raster comes as array.
+        window: A rasterio Window to plot only a subset of the raster.
         transparent: List of label values to make transparent. The alpha
             of this values will be set to 0. By default, hide label 0.
         legend: If true, a legend showing the color of each label will be
@@ -170,9 +168,7 @@ def show_histogram(
 
     Args:
         source: Path or array to read the data from.
-        window: A rasterio window to
-            plot only a subset of the raster. Ignored if the raster
-            comes as array. Defaults to None.
+        window: A rasterio Window to plot only a subset of the raster.
         bands: Define which bands will be displayed and in which order.
             Positions in the list correspond to red, green and blue
             respectively. Defaults to [1, 2, 3].
@@ -225,8 +221,7 @@ def show_proportions(
 
     Args:
         source: Path or array to read the data from.
-        window: A rasterio window to plot only a subset of the raster.
-            Ignored if the raster comes as array.
+        window: A rasterio Window to plot only a subset of the raster.
         show_axis: If true, the axis of the image will be displayed.
             False by default.
         ax: Axes to plot on. Otherwise, use current axes.
@@ -273,8 +268,7 @@ def describe(
     Args:
         imagery_source: Path or array to read the data from.
         label_source: Path or array to read the data from.
-        window: A rasterio window to plot only a subset of the raster.
-            Ignored for rasters that come as array. Defaults to None.
+        window: A rasterio Window to plot only a subset of the raster.
         bands: Define which bands will be displayed and in which order.
             Positions in the list correspond to red, green and blue
             respectively. Default: `red: 1, green: 2, blue: 3`.
@@ -312,8 +306,8 @@ def add_grid(
     patch_shape: Sequence[int],
     grid_shape: Optional[Sequence[int]] = None,
     patch_ids: Optional[Sequence[int]] = None,
-    grid_params: ParamsType = None,
-    text_params: ParamsType = None,
+    grid_params: Optional[ParamsType] = None,
+    text_params: Optional[ParamsType] = None,
     ax: Optional[plt.Axes] = None,
 ) -> plt.Axes:
     """Add grid and (if provided) patch ids to plot.

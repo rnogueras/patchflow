@@ -154,7 +154,7 @@ def read_source(
 
     Args:
         source: Path or array to read the data from.
-        window: Window object to read a subset of the raster only.
+        window: A rasterio Window to plot only a subset of the raster.
         bands: Defines which bands will be displayed and in which order.
             Positions in the list correspond to red, green and blue
             respectively. Default: read first band only.
