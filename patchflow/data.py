@@ -79,9 +79,9 @@ def tag_patches(
 
     Args:
         paired_paths: The output of the generate_tile_paths function.
-        tile_shape: Shape of the tile in pixels, provided as a tuple
+        tile_shape: Tile shape in pixels, provided as a tuple
             containing a pair of integers. E.g.: (1000, 1000).
-        patch_shape: Shape of the tile in pixels, provided as a tuple
+        patch_shape: Patch shape in pixels, provided as a tuple
             containing a pair of integers. E.g.: (128, 128).
         validation_size: A real number between 0 and 1 specifying the
             proportion of patches to place in the validation test.
@@ -97,7 +97,7 @@ def tag_patches(
 
     Returns:
         Three dictionaries each of which contains the paired_paths,
-        tile_shape, patche_shape and patch_indexes of a different
+        tile_shape, patch_shape and patch_indexes of a different
         subset, so that they can be easily passed to an instance of
         the PatchFlowGenerator using the ** operator.
     """
@@ -166,10 +166,10 @@ def read_source(
             return src.read(bands, window=window)
 
     elif isinstance(source, np.ndarray):
-
         if window is not None:
             if len(source.shape) == 2:
                 source = np.expand_dims(source, axis=0)
+
             source = source[
                 :,
                 window.col_off : window.col_off + window.width,
