@@ -6,9 +6,6 @@ import numpy as np
 import rasterio
 
 
-# TODO: Handle nodata
-
-
 RasterSourceType = Union[str, Path, np.ndarray]
 WindowType = Type[rasterio.windows.Window]
 ParamsType = Dict[str, Any]  # TODO: Take this away
@@ -92,8 +89,8 @@ def pad_raster(
     if "mode" not in kwargs:
         kwargs["mode"] = "symmetric"
 
-    # Using np.ceil to deal with uneven numbers (it is
-    # better to get a larger array and crop it afterwards).
+    # Using np.ceil to deal with uneven numbers. This creates
+    # creates a larger array that is cropped on return.
     dim_0 = int(np.ceil((out_shape[0] - raster.shape[1]) / 2))
     dim_1 = int(np.ceil((out_shape[1] - raster.shape[2]) / 2))
     pad_width = (dim_0, dim_0), (dim_1, dim_1)

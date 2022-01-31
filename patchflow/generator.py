@@ -17,7 +17,6 @@ from patchflow.plot import show_imagery, show_labels, add_grid
 BatchType = Tuple[np.ndarray, np.ndarray]
 
 
-# TODO: Handle nodata
 class PatchFlowGenerator(keras.utils.Sequence):
     """Patch generator to feed Keras segmentation models."""
 
@@ -74,7 +73,8 @@ class PatchFlowGenerator(keras.utils.Sequence):
             filler_label: Pixel label for the filler class. This value
                 will be used to label any empty area found during the
                 data generation. E.g.: incomplete tiles. Defaults to 0.
-            padding_method: Numpy padding mode. Defaults to `symmetric`.
+            padding_method: Numpy padding mode. This function is currently
+                called to fill incomplete patches. Defaults to `symmetric`.
                 See full list at:
                 https://numpy.org/doc/stable/reference/generated/numpy.pad.html
             output_shape: Shape of the output images. If the output
@@ -209,12 +209,12 @@ class PatchFlowGenerator(keras.utils.Sequence):
 
         for index in range(batch_count):
 
-            batch = next(self)
+            _, batch_labels = next(self)
 
-            for label_array in batch[1]:
-                raster_proportions = get_proportions(label_array)
+            for label_array in batch_labels:
+                proportions = get_proportions(label_array.astype(np.uint8))
 
-                for label, proportion in raster_proportions.items():
+                for label, proportion in proportions.items():
                     proportion_array[label] += proportion
 
             progress_bar.update(index + 1)
@@ -369,11 +369,11 @@ class PatchFlowGenerator(keras.utils.Sequence):
         imagery_kwargs: Optional[ParamsType] = None,
         labels_kwargs: Optional[ParamsType] = None,
     ) -> plt.Axes:
-        """Plot some patches from a batch and show them in a matrix.
+        """Plot set of patches from the specified or the last called batch.
 
         Args:
             batch_id: Index of the batch to plot. If None, the last batch
-                used is plotted. Defaults to None.
+                called is plotted. Defaults to None.
             matrix_shape: Shape of the plot matrix provided as (width,
                 height). Defaults to (5, 5)
             figsize: Figure size of the plot.
@@ -389,7 +389,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
         if batch_index is not None:
             X_batch, Y_batch = self[batch_index]
         else:
-            X_batch, Y_batch = next(self)
+            X_batch, Y_batch = self.load_current_batch()
 
         matrix_width, matrix_height = matrix_shape
 
