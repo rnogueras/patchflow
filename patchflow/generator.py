@@ -338,6 +338,12 @@ class PatchFlowGenerator(keras.utils.Sequence):
         # Reshape as image
         labels = rasterio.plot.reshape_as_image(labels)
         imagery = rasterio.plot.reshape_as_image(imagery)
+        
+        # Rescale
+        if isinstance(self.rescaling_factor, float):
+            imagery = imagery * self.rescaling_factor
+        elif self.rescaling_factor == "automatic":
+            imagery = imagery * dtype_rescaling_factor
 
         # Resize
         if labels.squeeze().shape != self.output_shape != None:
@@ -352,12 +358,6 @@ class PatchFlowGenerator(keras.utils.Sequence):
                 output_shape=(*self.output_shape, len(self.bands)),
                 mode=self.resizing_method,
             )
-
-        # Rescale
-        if isinstance(self.rescaling_factor, float):
-            imagery = imagery * self.rescaling_factor
-        elif self.rescaling_factor == "automatic":
-            imagery = imagery * dtype_rescaling_factor
 
         return labels, imagery
 

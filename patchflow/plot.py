@@ -335,9 +335,7 @@ def add_grid(
     """
 
     grid_defaults = dict(color="white", linewidth=2)
-    text_defaults = dict(
-        color="white", size="x-large", ha="center", va="center"
-    )
+    text_defaults = dict(color="white", size="small", ha="center", va="center")
 
     if ax is None:
         ax = plt.gca()
