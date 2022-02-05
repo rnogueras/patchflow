@@ -32,6 +32,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
         padding_method: str = "symmetric",
         output_shape: Optional[Sequence[int]] = None,
         resizing_method: str = "constant",
+        resizing_bins: float = 0.1,
         rescaling_factor: Optional[Union[str, float]] = "automatic",
         shuffle: bool = True,
         random_seed: Optional[int] = None,
@@ -81,12 +82,24 @@ class PatchFlowGenerator(keras.utils.Sequence):
                 shape is different from the patch shape, the images
                 will be resized during the data generation. Defaults
                 to None.
+            rescaling_factor: Real number used to rescale the pixel
+                values. E.g.: 1 / 255. Pass None to skip rescaling.
+                Defaults to None.
             resizing_method: Name of the mode to be used for resizing
                 the images when the patch size and output size are
                 different. Defaults to "constant". See full list at:
                 https://scikit-image.org/docs/dev/api/skimage.transform.html
-            rescaling_factor: Real number used to rescale the pixel
-                values. E.g.: 1 / 255. Defaults to None.
+            resizing_bins: Resizing interpolation methods produce
+                intermediate values in the edges of the labels. The
+                resulting layer must be binned using an arbitrary threshold
+                that can be controled through the resizing_bins param. For
+                example, setting resizing_bins = 0.01 (default value) in a
+                3 classes label raster will produce the following bins:
+
+                    - [0, 0.01) -> Label 0
+                    - [0.01, 1.01) -> Label 1
+                    - [1.01, 2.01) -> Label 2
+
             shuffle: Whether to shuffle the patch ids at the end of each
                 epoch. Defaults to True.
             random_seed: Pass an integer for reproducible output. Defaults
@@ -115,6 +128,7 @@ class PatchFlowGenerator(keras.utils.Sequence):
             output_shape = deepcopy(self.patch_shape)
         self.output_shape = output_shape
         self.resizing_method = resizing_method
+        self.resizing_bins = resizing_bins
 
         # Iteration
         self.iterator = 0
@@ -271,9 +285,9 @@ class PatchFlowGenerator(keras.utils.Sequence):
         )
 
         for index, patch_id in enumerate(self.current_batch):
-            labels, imagery = self.load_patch(patch_id)
-            Y[index] = labels
+            imagery, labels = self.load_patch(patch_id)
             X[index] = imagery
+            Y[index] = labels
 
         return X, Y
 
@@ -339,27 +353,34 @@ class PatchFlowGenerator(keras.utils.Sequence):
         labels = rasterio.plot.reshape_as_image(labels)
         imagery = rasterio.plot.reshape_as_image(imagery)
 
-        # Resize
-        if labels.squeeze().shape != self.output_shape != None:
-            labels = skimage.transform.resize(
-                image=labels,
-                output_shape=(*self.output_shape, 1),
-                mode=self.resizing_method,
-                preserve_range=True,
-            )
-            imagery = skimage.transform.resize(
-                image=imagery,
-                output_shape=(*self.output_shape, len(self.bands)),
-                mode=self.resizing_method,
-            )
-
         # Rescale
         if isinstance(self.rescaling_factor, float):
             imagery = imagery * self.rescaling_factor
         elif self.rescaling_factor == "automatic":
             imagery = imagery * dtype_rescaling_factor
 
-        return labels, imagery
+        # Resize
+        if labels.squeeze().shape != self.output_shape != None:
+            label_values = np.unique(labels)
+            labels = skimage.transform.resize(
+                image=labels,
+                output_shape=(*self.output_shape, 1),
+                mode=self.resizing_method,
+                preserve_range=True,
+            )
+            # Resizing labels produces intermediate values
+            # in their edges, so the array must be binned.
+            # TODO: Test this approach with multiclass data
+            bins = np.append(np.array([0]), label_values + self.resizing_bins)
+            labels = np.digitize(labels, bins) - 1
+
+            imagery = skimage.transform.resize(
+                image=imagery,
+                output_shape=(*self.output_shape, len(self.bands)),
+                mode=self.resizing_method,
+            )
+
+        return imagery, labels
 
     def plot_batch(
         self,
@@ -480,22 +501,13 @@ class PatchFlowGenerator(keras.utils.Sequence):
         Returns:
             Axes with plot.
         """
+
+        X, Y = self.load_patch(patch_id)
+
         if ax is None:
             ax = plt.gca()
 
-        patch_meta = self.locate_patch(patch_id)
-
-        show_imagery(
-            patch_meta["imagery_path"],
-            window=patch_meta["window"],
-            ax=ax,
-            **(imagery_params or {}),
-        )
-        show_labels(
-            patch_meta["labels_path"],
-            window=patch_meta["window"],
-            ax=ax,
-            **(label_params or {}),
-        )
+        show_imagery(X, ax=ax, **(imagery_params or {}), raster_shape=False)
+        show_labels(Y, ax=ax, **(label_params or {}))
 
         return ax
